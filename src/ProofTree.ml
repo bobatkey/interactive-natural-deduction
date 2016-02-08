@@ -253,11 +253,7 @@ struct
                premises
                |> List.mapi (fun i premise -> render_box (i::path) premise)
                |> concat_list;
-               div ~attrs:[A.class_ "rulename"] begin%concat
-                 text "(";
-                 text name;
-                 text ")"
-               end
+               div ~attrs:[A.class_ "rulename"] (text name)
              end;
              if selection = Some path then
                selectedformulabox path formula

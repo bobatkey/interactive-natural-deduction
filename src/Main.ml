@@ -49,7 +49,7 @@ module App : Component.S = struct
 
   let initial =
     { prooftree =
-        ProofTree.(initial (Or (a, b) @-> (a @-> c) @-> (b @-> d) @-> Or (c,d)))
+        ProofTree.(initial (And (a, b) @-> (a @-> c) @-> (b @-> d) @-> Or (c,d)))
     ; selection = None
     ; conjE1_parameter = ""
     ; conjE2_parameter = ""
@@ -71,7 +71,7 @@ module App : Component.S = struct
       div (R.render selection prooftree);
       div ~attrs:[A.class_ "buttonbox"] begin%concat
         button ~attrs:[E.onclick Reopen]
-          (text "Reset to selected goal");
+          (text "Reset selected goal");
         button ~attrs:[E.onclick (ApplyRule Assumption)]
           (text "Assumption");
         button ~attrs:[E.onclick (ApplyRule Implies_Intro)]
