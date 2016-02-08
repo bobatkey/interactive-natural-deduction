@@ -4,22 +4,9 @@
     <style type="text/css">
       body {
         font-family: "Linux Libertine O";
-      font-size: 20px;
+        font-size: 20px;
       }
       
-      .proofbox {
-        display: -moz-box;
-        display: flexbox;
-        display: -webkit-flexbox;    
-        display: -webkit-box;
-        -webkit-flex-direction: column;
-        flex-direction: column;
-        -webkit-box-orient: vertical;
-        -moz-box-orient: vertical;
-        padding-left: 1em;
-      padding-right: 1em
-      }
-
       .buttonbox {
         display: flex;
         flex-direction: column;
@@ -36,19 +23,25 @@
         width: 5em
       }
 
+      .proofbox {
+        display: flex;
+        flex-direction: column;
+        flex-wrap: nowrap;
+        padding-left: 0.5em;
+        padding-right: 0.5em;
+        justify-content: center
+      }
+
       .premisebox {
         border-bottom: 2px solid;
-        display: -moz-box;
-        display: -webkit-flexbox;
-        display: -webkit-box;
+        display: flex;
         flex-direction: row;
-        flex-align: end;
-        -moz-box-align: end;
-        -webkit-box-align: end
+        flex-wrap: nowrap;
+        align-items: flex-end;
       }
 
       .formulabox {
-        text-align: center;
+        white-space: nowrap;
         font-family: inherit;
         font-size: 100%;
         background-color: #ddd;
@@ -91,14 +84,14 @@
         border-top: 1px solid #ddd;
         border-left: 1px solid #ddd;
         border-right: 1px solid #ddd;
-        display: -moz-box;
-        display: flexbox;
-        -moz-box-orient: vertical;
+        display: flex;
+        flex-direction: column;
         margin-left: 0.5em; margin-right: 0.5em
       }
 
       .rulename {
-        font-size: 75%; color: #333
+        white-space: nowrap;
+        font-size: 75%; color: #333; align-self: flex-end;
       }
 
       .assumption {
