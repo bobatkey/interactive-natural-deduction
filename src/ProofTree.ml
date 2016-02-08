@@ -34,7 +34,7 @@ let (@->) f1 f2 = Implies (f1, f2)
 type prooftree =
   { formula : formula
   ; status  : [ `Open
-              | `Rule of proofbox list
+              | `Rule of string * proofbox list
               ]
   }
 
@@ -52,6 +52,7 @@ let b = Atom "B"
 let c = Atom "C"
 let d = Atom "D"
 
+(*
 let test =
   { formula = And (a, b) @-> (a @-> c) @-> (b @-> d) @-> And (c,d)
   ; status = `Rule
@@ -110,21 +111,6 @@ let test =
           }
         ]
   }
-
-(*
-   Plan:
-
-   - maintain a proof state as a tree
-   - also: selection information: at most one formula can be selected
-     - when selected: show the rules that can be applied
-     - the appropriate introduction rule
-     - all of the elimination rules (will require the formula being eliminated to be entered: or use meta-variables?)
-     - the assumption rule, if appropriate
-
-   If no prompt, then can select any open goal
-   If a goal is selected, then offer selection of what to do
-   If an eliminator is selected, then prompt for the eliminated formula
-     (not showing the controls)
 *)
 
 (*******************************************************************************)
@@ -147,17 +133,17 @@ let update_tree update_node path tree =
          (match update_node assumps node.formula with
            | `Open ->
               { node with status = `Open }
-           | `Rule premises ->
+           | `Rule (name, premises) ->
               let premises =
                 List.map
                   (fun (assumption,formula) ->
                      {assumption;subtree={formula;status=`Open}})
                   premises
               in
-              { node with status = `Rule premises })
-      | pos::path, `Rule premises ->
+              { node with status = `Rule (name, premises) })
+      | pos::path, `Rule (name, premises) ->
          let premises = update_nth (update_box assumps path) pos premises in
-         { node with status = `Rule premises }
+         { node with status = `Rule (name, premises) }
       | _, _ ->
          invalid_arg "mismatched path" (* This shouldn't happen *)
   and update_box assumps path {assumption;subtree} =
@@ -169,43 +155,47 @@ let update_tree update_node path tree =
 
 let implies_intro =
   update_tree (fun _assumps formula -> match formula with
-      | Implies (f1, f2) -> `Rule [ (Some f1, f2) ]
+      | Implies (f1, f2) -> `Rule ("→-I", [ (Some f1, f2) ])
       | _ -> invalid_arg "incorrectly applied implies_intro")
 
 let implies_elim f1 =
-  update_tree (fun _assumps f2 -> `Rule [ (None, f1 @-> f2); (None, f1) ])
+  update_tree (fun _assumps f2 ->
+      `Rule ("→-E", [ (None, f1 @-> f2); (None, f1) ]))
 
 let conj_intro =
   update_tree (fun _assumps -> function
-      | And (f1, f2) -> `Rule [ (None, f1); (None, f2) ]
+      | And (f1, f2) -> `Rule ("∧-I", [ (None, f1); (None, f2) ])
       | _ -> invalid_arg "incorrectly applied conj_intro")
 
 let conj_elim1 f2 =
-  update_tree (fun _assumps f1 -> `Rule [ (None, And (f1, f2)) ])
+  update_tree (fun _assumps f1 ->
+      `Rule ("∧-E1", [ (None, And (f1, f2)) ]))
 
 let conj_elim2 f1 =
-  update_tree (fun _assumps f2 -> `Rule [ (None, And (f1, f2)) ])
+  update_tree (fun _assumps f2 ->
+      `Rule ("∧-E2", [ (None, And (f1, f2)) ]))
 
 let disj_intro1 =
   update_tree (fun _assumps -> function
-      | Or (f1, f2) -> `Rule [ (None, f1) ]
+      | Or (f1, f2) -> `Rule ("∨-I1", [ (None, f1) ])
       | _ -> invalid_arg "incorrectly applied disj_intro1")
 
 let disj_intro2 =
   update_tree (fun _assumps -> function
-      | Or (f1, f2) -> `Rule [ (None, f2) ]
+      | Or (f1, f2) -> `Rule ("∨-I2", [ (None, f2) ])
       | _ -> invalid_arg "incorrectly applied disj_intro2")
 
 let disj_elim f1 f2 =
   update_tree (fun _assumps f ->
-      `Rule [ (None, Or (f1, f2))
-            ; (Some f1, f)
-            ; (Some f2, f)
-            ])
+      `Rule ("∨-E",
+             [ (None, Or (f1, f2))
+             ; (Some f1, f)
+             ; (Some f2, f)
+             ]))
 
 let by_assumption =
   update_tree (fun assumps f ->
-      if List.mem f assumps then `Rule []
+      if List.mem f assumps then `Rule ("assumption", [])
       else invalid_arg "assumption not applicable")
 
 let makeopen =
@@ -258,11 +248,16 @@ struct
              openselectedformulabox path formula
           | `Open ->
              openformula path formula
-          | `Rule premises ->
-             premisebox begin
+          | `Rule (name, premises) ->
+             premisebox begin%concat
                premises
                |> List.mapi (fun i premise -> render_box (i::path) premise)
-               |> concat_list
+               |> concat_list;
+               div ~attrs:[A.class_ "rulename"] begin%concat
+                 text "(";
+                 text name;
+                 text ")"
+               end
              end;
              if selection = Some path then
                selectedformulabox path formula
@@ -274,7 +269,7 @@ struct
       | Some assumption ->
          div ~attrs:[A.class_ "assumptionbox"] begin%concat
            div ~attrs:[A.class_ "assumption"] begin%concat
-             text "assuming ";
+             text "with ";
              text (string_of_formula assumption);
              text " ..."
            end;

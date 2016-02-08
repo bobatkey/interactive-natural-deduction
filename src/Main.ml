@@ -71,7 +71,7 @@ module App : Component.S = struct
       div (R.render selection prooftree);
       div ~attrs:[A.class_ "buttonbox"] begin%concat
         button ~attrs:[E.onclick Reopen]
-          (text "Reset to here");
+          (text "Reset to selected goal");
         button ~attrs:[E.onclick (ApplyRule Assumption)]
           (text "Assumption");
         button ~attrs:[E.onclick (ApplyRule Implies_Intro)]
