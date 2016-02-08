@@ -11,7 +11,7 @@ include build-support/OCamlSrcs.makefile
 all: natural-deduction.js
 
 natural-deduction.js: src/_build/byte_bin/natural-deduction
-	js_of_ocaml --source-map-inline -o $@ $<
+	js_of_ocaml -o $@ $<
 
 clean:
 	rm -rf $(BUILDDIRS)
