@@ -124,6 +124,9 @@ let by_assumption =
 let makeopen =
   update_tree (fun _assumps _f -> `Open)
 
+let set_partial p =
+  update_tree (fun _assumps _f -> `Partial p)
+
 (**********************************************************************)
 module App = struct
   open Dynamic_HTML
@@ -145,6 +148,7 @@ module App = struct
   type action =
     | ApplyRule of goal * rulename
     | Update    of goal * partial
+    | ResetTo   of goal
     | DoNothing
 
   let proofbox elements =
@@ -154,7 +158,9 @@ module App = struct
     div ~attrs:[A.class_ "premisebox"] elements
 
   let formulabox path formula =
-    div ~attrs:[ A.class_ "formulabox" ]
+    div ~attrs:[ A.class_ "formulabox"
+               ; E.onclick (ResetTo path)
+               ; A.title "Click to reset proof to this formula"]
       (text (Formula.to_string formula))
 
   let rule_selector assumps path formula =
@@ -397,6 +403,9 @@ module App = struct
     | DoNothing ->
        prooftree
 
+    | ResetTo path ->
+       makeopen path prooftree
+
     | Update (path, partial) ->
-       update_tree (fun _ _ -> `Partial partial) path prooftree
+       set_partial partial path prooftree
 end
