@@ -15,12 +15,10 @@ let parens l1 s l2 =
 let drop f l =
   f (l-1)
 
-let unicode = true
-let arrow = if unicode then " → " else " -> "
-let conj  = if unicode then " ∧ " else " /\\ "
-let disj  = if unicode then " ∨ " else " \\/ "
-
-let rec to_string f =
+let rec to_string ?(unicode=true) f =
+  let arrow = if unicode then " → " else " -> " in
+  let conj  = if unicode then " ∧ " else " /\\ " in
+  let disj  = if unicode then " ∨ " else " \\/ " in
   let text x l = x in
   let (^^) x y l = x l ^ y l in
   let rec to_string = function

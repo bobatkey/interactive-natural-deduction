@@ -1,3 +1,5 @@
+val parse_formula : string -> Formula.t option
+
 type prooftree
 
 type goal
@@ -22,7 +24,7 @@ val disj_elim : Formula.t -> Formula.t -> rule
 
 (**********************************************************************)
 
-module App : sig
+module UI : sig
   type state = prooftree
   type action
   val render : state -> action Dynamic_HTML.html

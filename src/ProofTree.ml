@@ -1,4 +1,3 @@
-(**********************************************************************)
 type partial =
   | Partial_Implies_elim of string
   | Partial_Conj_elim1   of string
@@ -20,6 +19,7 @@ and proofbox =
   ; assumption : Formula.t option
   }
 
+(**********************************************************************)
 let initial formula =
   { formula; status = Open }
 
@@ -128,7 +128,7 @@ let set_partial p =
   update_tree (fun _assumps _f -> `Partial p)
 
 (**********************************************************************)
-module App = struct
+module UI = struct
   open Dynamic_HTML
 
   type state = prooftree
@@ -213,12 +213,12 @@ module App = struct
       end
 
   let disabled_rule_button label =
-    button ~attrs:[ A.class_ "rulename"; A.disabled true ]
+    button ~attrs:[ (*A.class_ "rulename";*) A.disabled true ]
       (text ("apply " ^ label))
 
   let enabled_rule_button label path rule =
-    button ~attrs:[ A.class_ "rulename"
-                  ; E.onclick (ApplyRule (path, rule)) ]
+    button ~attrs:[ (*A.class_ "rulename"
+                      ; *)E.onclick (ApplyRule (path, rule)) ]
       (text ("apply " ^ label))
 
   let render proof : action Dynamic_HTML.t =
