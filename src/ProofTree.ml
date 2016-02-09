@@ -1,17 +1,19 @@
 (**********************************************************************)
 type partial =
-  [ `Implies_elim of string
-  | `Conj_elim1   of string
-  | `Conj_elim2   of string
-  | `Disj_elim    of string * string
-  ]
+  | Partial_Implies_elim of string
+  | Partial_Conj_elim1   of string
+  | Partial_Conj_elim2   of string
+  | Partial_Disj_elim    of string * string
 
 type prooftree =
   { formula : Formula.t
-  ; status  : [ `Open
-              | `Rule of string * proofbox list
-              | partial ]
+  ; status  : status
   }
+
+and status =
+  | Open
+  | Rule    of string * proofbox list
+  | Partial of partial
 
 and proofbox =
   { subtree    : prooftree
@@ -19,7 +21,14 @@ and proofbox =
   }
 
 let initial formula =
-  { formula; status = `Open }
+  { formula; status = Open }
+
+(**********************************************************************)
+let parse_formula string =
+  let lb = Lexing.from_string string in
+  match Formula_parser.whole_formula Formula_lexer.token lb with
+    | exception Formula_parser.Error -> None
+    | f -> Some f
 
 (**********************************************************************)
 let update_nth f i l =
@@ -40,20 +49,20 @@ let update_tree update_node path tree =
       | [], _ ->
          (match update_node assumps node.formula with
            | `Open ->
-              { node with status = `Open }
+              { node with status = Open }
            | `Rule (name, premises) ->
               let premises =
                 List.map
                   (fun (assumption,formula) ->
-                     {assumption;subtree={formula;status=`Open}})
+                     {assumption;subtree={formula;status=Open}})
                   premises
               in
-              { node with status = `Rule (name, premises) }
-           | #partial as p ->
-              { node with status = p})
-      | pos::path, `Rule (name, premises) ->
+              { node with status = Rule (name, premises) }
+           | `Partial p ->
+              { node with status = Partial p })
+      | pos::path, Rule (name, premises) ->
          let premises = update_nth (update_box assumps path) pos premises in
-         { node with status = `Rule (name, premises) }
+         { node with status = Rule (name, premises) }
       | _, _ ->
          invalid_arg "mismatched path" (* This shouldn't happen *)
   and update_box assumps path {assumption;subtree} =
@@ -103,6 +112,10 @@ let disj_elim f1 f2 =
              ; (Some f2, f)
              ]))
 
+let false_elim =
+  update_tree (fun _assumps _f ->
+      `Rule ("⊥-E", [ (None, Formula.False) ]))
+
 let by_assumption =
   update_tree (fun assumps f ->
       if List.mem f assumps then `Rule ("assumption", [])
@@ -127,6 +140,7 @@ module App = struct
     | Disj_intro1
     | Disj_intro2
     | Disj_elim of Formula.t * Formula.t
+    | False_elim
 
   type action =
     | ApplyRule of goal * rulename
@@ -140,45 +154,28 @@ module App = struct
     div ~attrs:[A.class_ "premisebox"] elements
 
   let formulabox path formula =
-    button ~attrs:[ A.class_ "formulabox"
-    (*; E2.makeselection path*) ]
+    div ~attrs:[ A.class_ "formulabox" ]
       (text (Formula.to_string formula))
-
-  (*
-  let openformula path formula =
-    button ~attrs:[ A.class_ "formulabox open"
-    (*; E2.makeselection path*) ]
-      (text (string_of_formula formula))
-
-  let selectedformulabox path formula =
-    button ~attrs:[ A.class_ "formulabox selected"
-    (*; E2.makeselection path*) ]
-      (text (string_of_formula formula))
-
-  let openselectedformulabox path formula =
-    button ~attrs:[ A.class_ "formulabox open selected"
-    (*; E2.makeselection path*) ]
-      (text (string_of_formula formula))
-*)
 
   let rule_selector assumps path formula =
     let handler ~value = match value with
       | "assumption"  -> ApplyRule (path, Assumption)
       | "imp_intro"   -> ApplyRule (path, Implies_intro)
-      | "imp_elim"    -> Update (path, `Implies_elim "")
+      | "imp_elim"    -> Update (path, Partial_Implies_elim "")
       | "conj_intro"  -> ApplyRule (path, Conj_intro)
-      | "conj_elim1"  -> Update (path, `Conj_elim1 "")
-      | "conj_elim2"  -> Update (path, `Conj_elim2 "")
+      | "conj_elim1"  -> Update (path, Partial_Conj_elim1 "")
+      | "conj_elim2"  -> Update (path, Partial_Conj_elim2 "")
       | "disj_intro1" -> ApplyRule (path, Disj_intro1)
       | "disj_intro2" -> ApplyRule (path, Disj_intro2)
-      | "disj_elim"   -> Update (path, `Disj_elim ("", ""))
+      | "disj_elim"   -> Update (path, Partial_Disj_elim ("", ""))
+      | "false_elim"  -> ApplyRule (path, False_elim)
       | _             -> DoNothing
     in
     select ~attrs:[ A.title "Select a rule to apply"
                   ; E.onchange handler
                   ; A.class_ "ruleselector" ]
       begin%concat
-        option ~attrs:[A.selected true; A.value "nothing"] (text "Apply rule...");
+        option ~attrs:[A.selected true; A.value "nothing"] (text "Select rule...");
         optgroup ~attrs:[A.label "Structural"] begin
           let disable = not (List.mem formula assumps) in
           option ~attrs:[A.value "assumption"; A.disabled disable] (text "assumption");
@@ -202,19 +199,32 @@ module App = struct
             option ~attrs:[A.value "disj_intro1"; A.disabled disable] (text "∨-I1");
             option ~attrs:[A.value "disj_intro2"; A.disabled disable] (text "∨-I2");
             option ~attrs:[A.value "disj_elim"] (text "∨-E");
+          end;
+        optgroup ~attrs:[A.label "False (⊥)"]
+          begin%concat
+            option ~attrs:[A.value "false_elim"] (text "⊥-E")
           end
       end
+
+  let disabled_rule_button label =
+    button ~attrs:[ A.class_ "rulename"; A.disabled true ]
+      (text ("apply " ^ label))
+
+  let enabled_rule_button label path rule =
+    button ~attrs:[ A.class_ "rulename"
+                  ; E.onclick (ApplyRule (path, rule)) ]
+      (text ("apply " ^ label))
 
   let render proof : action Dynamic_HTML.t =
     let rec render assumps path {formula;status} =
       proofbox begin%concat
         match status with
-          | `Open ->
+          | Open ->
              premisebox begin%concat
                rule_selector assumps path formula
              end;
              formulabox path formula
-          | `Rule (name, premises) ->
+          | Rule (name, premises) ->
              premisebox begin%concat
                premises
                |> List.mapi (fun i premise -> render_box assumps (i::path) premise)
@@ -222,14 +232,14 @@ module App = struct
                div ~attrs:[A.class_ "rulename"] (text name)
              end;
              formulabox path formula
-          | `Implies_elim parameter ->
+          | Partial (Partial_Implies_elim parameter) ->
              premisebox begin%concat
                proofbox begin
                  div ~attrs:[A.class_ "formulabox"] begin%concat
                    input ~attrs:[ A.class_ "formulainput"
                                 ; A.value parameter
                                 ; A.placeholder "<formula>"
-                                ; E.oninput (fun ~value -> Update (path, `Implies_elim value))
+                                ; E.oninput (fun ~value -> Update (path, Partial_Implies_elim value))
                                 ];
                    text " → ";
                    text (Formula.to_string formula);
@@ -240,18 +250,18 @@ module App = struct
                    input ~attrs:[ A.class_ "formulainput"
                                 ; A.value parameter
                                 ; A.placeholder "<formula>"
-                                ; E.oninput (fun ~value -> Update (path, `Implies_elim value))
+                                ; E.oninput (fun ~value -> Update (path, Partial_Implies_elim value))
                                 ];
                  end;
                end;
-               button ~attrs:[ A.class_ "rulename"
-                             ; E.onclick (ApplyRule (path, Implies_elim (Formula.Atom parameter)))]
-                 begin
-                   text "→-E"
-                 end
+               (match parse_formula parameter with
+                 | None ->
+                    disabled_rule_button "→-E"
+                 | Some f ->
+                    enabled_rule_button "→-E" path (Implies_elim f))
              end;
              formulabox path formula
-          | `Conj_elim1 parameter ->
+          | Partial (Partial_Conj_elim1 parameter) ->
              premisebox begin%concat
                proofbox begin
                  div ~attrs:[A.class_ "formulabox"] begin%concat
@@ -260,49 +270,53 @@ module App = struct
                    input ~attrs:[ A.class_ "formulainput"
                                 ; A.value parameter
                                 ; A.placeholder "<formula>"
-                                ; E.oninput (fun ~value -> Update (path, `Conj_elim1 value))
+                                ; E.oninput (fun ~value -> Update (path, Partial_Conj_elim1 value))
                                 ];
                  end;
                end;
-               button ~attrs:[ A.class_ "rulename"
-                             ; E.onclick (ApplyRule (path, Conj_elim1 (Formula.Atom parameter)))] begin
-                 text "∧-E1"
-               end
+               (match parse_formula parameter with
+                 | None ->
+                    disabled_rule_button "∧-E1"
+                 | Some f ->
+                    enabled_rule_button "∧-E1" path (Conj_elim1 f))
              end;
              formulabox path formula
-          | `Conj_elim2 parameter ->
+          | Partial (Partial_Conj_elim2 parameter) ->
              premisebox begin%concat
                proofbox begin
                  div ~attrs:[A.class_ "formulabox"] begin%concat
                    input ~attrs:[ A.class_ "formulainput"
                                 ; A.value parameter
                                 ; A.placeholder "<formula>"
-                                ; E.oninput (fun ~value -> Update (path, `Conj_elim2 value))
+                                ; E.oninput (fun ~value -> Update (path, Partial_Conj_elim2 value))
                                 ];
                    text " ∧ ";
                    text (Formula.to_string formula);
                  end;
                end;
-               button ~attrs:[ A.class_ "rulename"
-                             ; E.onclick (ApplyRule (path, Conj_elim2 (Formula.Atom parameter)))] begin
-                 text "∧-E2"
-               end
+               (match parse_formula parameter with
+                 | None ->
+                    disabled_rule_button "∧-E2"
+                 | Some f ->
+                    enabled_rule_button "∧-E2" path (Conj_elim2 f))
              end;
              formulabox path formula
-          | `Disj_elim (param1, param2) ->
+          | Partial (Partial_Disj_elim (param1, param2)) ->
+             let f1 = parse_formula param1 in
+             let f2 = parse_formula param2 in
              premisebox begin%concat
-               proofbox begin
+               proofbox begin%concat
                  div ~attrs:[A.class_ "formulabox"] begin%concat
                    input ~attrs:[ A.class_ "formulainput"
                                 ; A.value param1
                                 ; A.placeholder "<formula>"
-                                ; E.oninput (fun ~value -> Update (path, `Disj_elim (value, param2)))
+                                ; E.oninput (fun ~value -> Update (path, Partial_Disj_elim (value, param2)))
                                 ];
                    text " ∨ ";
                    input ~attrs:[ A.class_ "formulainput"
                                 ; A.value param2
                                 ; A.placeholder "<formula>"
-                                ; E.oninput (fun ~value -> Update (path, `Disj_elim (param1, value)))
+                                ; E.oninput (fun ~value -> Update (path, Partial_Disj_elim (param1, value)))
                                 ];
                  end
                end;
@@ -330,11 +344,13 @@ module App = struct
                    end
                  end
                end;
-               button ~attrs:[ A.class_ "rulename"
-                             ; E.onclick (ApplyRule (path, Disj_elim (Formula.Atom param1, Formula.Atom param2)))] begin
-                 text "∨-E"
-               end
-             end
+               (match f1, f2 with
+                 | None, _ | _, None ->
+                    disabled_rule_button "∨-E"
+                 | Some f1, Some f2  ->
+                    enabled_rule_button "∨-E" path (Disj_elim (f1, f2)))
+             end;
+             formulabox path formula
       end
 
     and render_box assumps path {subtree;assumption} = match assumption with
@@ -374,9 +390,13 @@ module App = struct
        disj_intro2 path prooftree
     | ApplyRule (path, Disj_elim (f1, f2)) ->
        disj_elim f1 f2 path prooftree
+
+    | ApplyRule (path, False_elim) ->
+       false_elim path prooftree
+
     | DoNothing ->
        prooftree
 
     | Update (path, partial) ->
-       update_tree (fun _ _ -> partial) path prooftree
+       update_tree (fun _ _ -> `Partial partial) path prooftree
 end

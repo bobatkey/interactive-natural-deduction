@@ -9,8 +9,7 @@ module App = struct
   let initial =
     ProofTree.initial
       Formula.(Or (a @-> b, a @-> c) @-> a @-> Or (b,c))
-(*               
-                 (Or (a, b) @-> (a @-> c) @-> (b @-> d) @-> Or (c,d)))*)
+      (*Formula.(Or (a, b) @-> (a @-> c) @-> (b @-> d) @-> Or (c,d))*)
 end
 
 let _ =
