@@ -31,6 +31,7 @@ type 'a html = 'a t
 
 (**********************************************************************)
 type 'action attribute =
+  | A_Nothing
   | A_Simple of string * string
   | A_Event  : ('a #Dom.event Js.t as 'b) Dom.Event.typ
                * (Dom_html.element Js.t -> 'b -> 'action option)
@@ -66,6 +67,8 @@ let attributes_and_handlers list =
     List.fold_left
       (fun (attributes, handlers) ->
          function
+           | A_Nothing ->
+              (attributes, handlers)
            | A_Simple (name, value) ->
               (String.Map.add name value attributes, handlers)
            | A_Event (typ, h) ->
@@ -311,6 +314,9 @@ module A = struct
   let for_control value =
     A_Simple ("for", value)
 
+  let label value =
+    A_Simple ("label", value)
+
   (* For 'input' elements *)
   let accept value =
     A_Simple ("accept", value)
@@ -325,6 +331,11 @@ module A = struct
     A_Simple ("value", value)
   let placeholder value =
     A_Simple ("placeholder", value)
+
+  let selected value =
+    A_Simple ("selected", if value then "yes" else "no")
+  let disabled value =
+    if value then A_Simple ("disabled", "yes") else A_Nothing
 end
 
   (* Events *)

@@ -1,119 +1,27 @@
-type formula =
-  | Atom    of string
-  | Implies of formula * formula
-  | And     of formula * formula
-  | Or      of formula * formula
-  | Not     of formula
-
-let parens l1 s l2 =
-  if l1 > l2 then "("^s l1^")" else s l1
-
-let drop f l =
-  f (l-1)
-
-let rec string_of_formula f =
-  let text x l = x in
-  let (^^) x y l = x l ^ y l in
-  let rec to_string = function
-    | Atom a ->
-       text a
-    | Implies (f1, f2) ->
-       parens 10 (drop (to_string f1) ^^ text " → " ^^ to_string f2)
-    | And (f1, f2) ->
-       parens 08 (drop (to_string f1) ^^ text " ∧ " ^^ to_string f2)
-    | Or (f1, f2) ->
-       parens 07 (drop (to_string f1) ^^ text " ∨ " ^^ to_string f2)
-    | Not f ->
-       text "¬" ^^ parens 0 (to_string f)
-  in
-  to_string f 10
-
-let (@->) f1 f2 = Implies (f1, f2)
-
 (**********************************************************************)
+type partial =
+  [ `Implies_elim of string
+  | `Conj_elim1   of string
+  | `Conj_elim2   of string
+  | `Disj_elim    of string * string
+  ]
+
 type prooftree =
-  { formula : formula
+  { formula : Formula.t
   ; status  : [ `Open
               | `Rule of string * proofbox list
-              ]
+              | partial ]
   }
 
 and proofbox =
   { subtree    : prooftree
-  ; assumption : formula option
+  ; assumption : Formula.t option
   }
 
 let initial formula =
   { formula; status = `Open }
 
 (**********************************************************************)
-let a = Atom "A"
-let b = Atom "B"
-let c = Atom "C"
-let d = Atom "D"
-
-(*
-let test =
-  { formula = And (a, b) @-> (a @-> c) @-> (b @-> d) @-> And (c,d)
-  ; status = `Rule
-        [ { assumption = Some (And (a, b))
-          ; subtree = 
-              { formula = (a @-> c) @-> (b @-> d) @-> And (c,d)
-              ; status = `Rule
-                    [ {assumption = Some (a @-> c)
-                      ; subtree =
-                          { formula = (b @-> d) @-> And (c,d)
-                          ; status = `Rule
-                                [ { assumption = Some (b @-> d)
-                                  ; subtree = 
-                                      { formula =  And (c,d)
-                                      ; status = `Rule
-                                            [ { assumption = None
-                                              ; subtree =
-                                                  { formula = c
-                                                  ; status = `Rule
-                                                        [ { assumption = None; subtree = { formula = a @-> c; status = `Open }}
-                                                        ; { assumption = None
-                                                          ; subtree =
-                                                              { formula = a
-                                                              ; status = `Rule
-                                                                    [ { assumption = None
-                                                                      ; subtree = { formula = And (a,b); status = `Rule [] } } ]
-                                                              }
-                                                          }
-                                                        ]
-                                                  }
-                                              }
-                                            ; { assumption = None
-                                              ; subtree =
-                                                  { formula = d
-                                                  ; status = `Rule
-                                                        [ { assumption = None; subtree = { formula = b @-> d; status = `Open }}
-                                                        ; { assumption = None
-                                                          ; subtree =
-                                                              { formula = b
-                                                              ; status = `Rule
-                                                                    [ { assumption = None
-                                                                      ; subtree = { formula = And (a,b); status = `Rule [] } } ]
-                                                              }
-                                                          }
-                                                        ]
-                                                  }
-                                              }
-                                            ]
-                                      }
-                                  }
-                                ]
-                          }
-                      }
-                    ]
-              }
-          }
-        ]
-  }
-*)
-
-(*******************************************************************************)
 let update_nth f i l =
   let rec update i l = match i, l with
     | 0, x::xs -> f x::xs
@@ -140,7 +48,9 @@ let update_tree update_node path tree =
                      {assumption;subtree={formula;status=`Open}})
                   premises
               in
-              { node with status = `Rule (name, premises) })
+              { node with status = `Rule (name, premises) }
+           | #partial as p ->
+              { node with status = p})
       | pos::path, `Rule (name, premises) ->
          let premises = update_nth (update_box assumps path) pos premises in
          { node with status = `Rule (name, premises) }
@@ -155,40 +65,40 @@ let update_tree update_node path tree =
 
 let implies_intro =
   update_tree (fun _assumps formula -> match formula with
-      | Implies (f1, f2) -> `Rule ("→-I", [ (Some f1, f2) ])
+      | Formula.Implies (f1, f2) -> `Rule ("→-I", [ (Some f1, f2) ])
       | _ -> invalid_arg "incorrectly applied implies_intro")
 
 let implies_elim f1 =
   update_tree (fun _assumps f2 ->
-      `Rule ("→-E", [ (None, f1 @-> f2); (None, f1) ]))
+      `Rule ("→-E", [ (None, Formula.Implies (f1, f2)); (None, f1) ]))
 
 let conj_intro =
   update_tree (fun _assumps -> function
-      | And (f1, f2) -> `Rule ("∧-I", [ (None, f1); (None, f2) ])
+      | Formula.And (f1, f2) -> `Rule ("∧-I", [ (None, f1); (None, f2) ])
       | _ -> invalid_arg "incorrectly applied conj_intro")
 
 let conj_elim1 f2 =
   update_tree (fun _assumps f1 ->
-      `Rule ("∧-E1", [ (None, And (f1, f2)) ]))
+      `Rule ("∧-E1", [ (None, Formula.And (f1, f2)) ]))
 
 let conj_elim2 f1 =
   update_tree (fun _assumps f2 ->
-      `Rule ("∧-E2", [ (None, And (f1, f2)) ]))
+      `Rule ("∧-E2", [ (None, Formula.And (f1, f2)) ]))
 
 let disj_intro1 =
   update_tree (fun _assumps -> function
-      | Or (f1, f2) -> `Rule ("∨-I1", [ (None, f1) ])
+      | Formula.Or (f1, f2) -> `Rule ("∨-I1", [ (None, f1) ])
       | _ -> invalid_arg "incorrectly applied disj_intro1")
 
 let disj_intro2 =
   update_tree (fun _assumps -> function
-      | Or (f1, f2) -> `Rule ("∨-I2", [ (None, f2) ])
+      | Formula.Or (f1, f2) -> `Rule ("∨-I2", [ (None, f2) ])
       | _ -> invalid_arg "incorrectly applied disj_intro2")
 
 let disj_elim f1 f2 =
   update_tree (fun _assumps f ->
       `Rule ("∨-E",
-             [ (None, Or (f1, f2))
+             [ (None, Formula.Or (f1, f2))
              ; (Some f1, f)
              ; (Some f2, f)
              ]))
@@ -202,18 +112,27 @@ let makeopen =
   update_tree (fun _assumps _f -> `Open)
 
 (**********************************************************************)
-module Renderer
-    (H : Html.S)
-    (E : sig
-       type action
-       val makeselection : int list -> action H.attribute
-     end)
-  : sig
-    val render : int list option -> prooftree -> E.action H.html
-  end =
-struct
-  open H
-  
+module App = struct
+  open Dynamic_HTML
+
+  type state = prooftree
+
+  type rulename =
+    | Assumption
+    | Implies_intro
+    | Implies_elim of Formula.t
+    | Conj_intro
+    | Conj_elim1 of Formula.t
+    | Conj_elim2 of Formula.t
+    | Disj_intro1
+    | Disj_intro2
+    | Disj_elim of Formula.t * Formula.t
+
+  type action =
+    | ApplyRule of goal * rulename
+    | Update    of goal * partial
+    | DoNothing
+
   let proofbox elements =
     div ~attrs:[A.class_ "proofbox"] elements
 
@@ -222,57 +141,242 @@ struct
 
   let formulabox path formula =
     button ~attrs:[ A.class_ "formulabox"
-                  ; E.makeselection path ]
-      (text (string_of_formula formula))
+    (*; E2.makeselection path*) ]
+      (text (Formula.to_string formula))
 
+  (*
   let openformula path formula =
     button ~attrs:[ A.class_ "formulabox open"
-                  ; E.makeselection path ]
+    (*; E2.makeselection path*) ]
       (text (string_of_formula formula))
 
   let selectedformulabox path formula =
     button ~attrs:[ A.class_ "formulabox selected"
-                  ; E.makeselection path ]
+    (*; E2.makeselection path*) ]
       (text (string_of_formula formula))
 
   let openselectedformulabox path formula =
     button ~attrs:[ A.class_ "formulabox open selected"
-                  ; E.makeselection path ]
+    (*; E2.makeselection path*) ]
       (text (string_of_formula formula))
+*)
 
-  let render selection proof =
-    let rec render path {formula;status} =
+  let rule_selector assumps path formula =
+    let handler ~value = match value with
+      | "assumption"  -> ApplyRule (path, Assumption)
+      | "imp_intro"   -> ApplyRule (path, Implies_intro)
+      | "imp_elim"    -> Update (path, `Implies_elim "")
+      | "conj_intro"  -> ApplyRule (path, Conj_intro)
+      | "conj_elim1"  -> Update (path, `Conj_elim1 "")
+      | "conj_elim2"  -> Update (path, `Conj_elim2 "")
+      | "disj_intro1" -> ApplyRule (path, Disj_intro1)
+      | "disj_intro2" -> ApplyRule (path, Disj_intro2)
+      | "disj_elim"   -> Update (path, `Disj_elim ("", ""))
+      | _             -> DoNothing
+    in
+    select ~attrs:[ A.title "Select a rule to apply"
+                  ; E.onchange handler
+                  ; A.class_ "ruleselector" ]
+      begin%concat
+        option ~attrs:[A.selected true; A.value "nothing"] (text "Apply rule...");
+        optgroup ~attrs:[A.label "Structural"] begin
+          let disable = not (List.mem formula assumps) in
+          option ~attrs:[A.value "assumption"; A.disabled disable] (text "assumption");
+        end;
+        optgroup ~attrs:[A.label "Implication (→)"]
+          begin%concat
+            let disable = match formula with Formula.Implies _ -> false | _ -> true in
+            option ~attrs:[A.value "imp_intro"; A.disabled disable] (text "→-I");
+            option ~attrs:[A.value "imp_elim"] (text "→-E");
+          end;
+        optgroup ~attrs:[A.label "Conjunction (∧)"]
+          begin%concat
+            let disable = match formula with Formula.And _ -> false | _ -> true in
+            option ~attrs:[A.value "conj_intro"; A.disabled disable] (text "∧-I");
+            option ~attrs:[A.value "conj_elim1"] (text "∧-E1");
+            option ~attrs:[A.value "conj_elim2"] (text "∧-E2");
+          end;
+        optgroup ~attrs:[A.label "Disjunction (∨)"]
+          begin%concat
+            let disable = match formula with Formula.Or _ -> false | _ -> true in
+            option ~attrs:[A.value "disj_intro1"; A.disabled disable] (text "∨-I1");
+            option ~attrs:[A.value "disj_intro2"; A.disabled disable] (text "∨-I2");
+            option ~attrs:[A.value "disj_elim"] (text "∨-E");
+          end
+      end
+
+  let render proof : action Dynamic_HTML.t =
+    let rec render assumps path {formula;status} =
       proofbox begin%concat
         match status with
-          | `Open when selection = Some path ->
-             openselectedformulabox path formula
           | `Open ->
-             openformula path formula
+             premisebox begin%concat
+               rule_selector assumps path formula
+             end;
+             formulabox path formula
           | `Rule (name, premises) ->
              premisebox begin%concat
                premises
-               |> List.mapi (fun i premise -> render_box (i::path) premise)
+               |> List.mapi (fun i premise -> render_box assumps (i::path) premise)
                |> concat_list;
                div ~attrs:[A.class_ "rulename"] (text name)
              end;
-             if selection = Some path then
-               selectedformulabox path formula
-             else
-               formulabox path formula
+             formulabox path formula
+          | `Implies_elim parameter ->
+             premisebox begin%concat
+               proofbox begin
+                 div ~attrs:[A.class_ "formulabox"] begin%concat
+                   input ~attrs:[ A.class_ "formulainput"
+                                ; A.value parameter
+                                ; A.placeholder "<formula>"
+                                ; E.oninput (fun ~value -> Update (path, `Implies_elim value))
+                                ];
+                   text " → ";
+                   text (Formula.to_string formula);
+                 end;
+               end;
+               proofbox begin
+                 div ~attrs:[A.class_ "formulabox"] begin%concat
+                   input ~attrs:[ A.class_ "formulainput"
+                                ; A.value parameter
+                                ; A.placeholder "<formula>"
+                                ; E.oninput (fun ~value -> Update (path, `Implies_elim value))
+                                ];
+                 end;
+               end;
+               button ~attrs:[ A.class_ "rulename"
+                             ; E.onclick (ApplyRule (path, Implies_elim (Formula.Atom parameter)))]
+                 begin
+                   text "→-E"
+                 end
+             end;
+             formulabox path formula
+          | `Conj_elim1 parameter ->
+             premisebox begin%concat
+               proofbox begin
+                 div ~attrs:[A.class_ "formulabox"] begin%concat
+                   text (Formula.to_string formula);
+                   text " ∧ ";
+                   input ~attrs:[ A.class_ "formulainput"
+                                ; A.value parameter
+                                ; A.placeholder "<formula>"
+                                ; E.oninput (fun ~value -> Update (path, `Conj_elim1 value))
+                                ];
+                 end;
+               end;
+               button ~attrs:[ A.class_ "rulename"
+                             ; E.onclick (ApplyRule (path, Conj_elim1 (Formula.Atom parameter)))] begin
+                 text "∧-E1"
+               end
+             end;
+             formulabox path formula
+          | `Conj_elim2 parameter ->
+             premisebox begin%concat
+               proofbox begin
+                 div ~attrs:[A.class_ "formulabox"] begin%concat
+                   input ~attrs:[ A.class_ "formulainput"
+                                ; A.value parameter
+                                ; A.placeholder "<formula>"
+                                ; E.oninput (fun ~value -> Update (path, `Conj_elim2 value))
+                                ];
+                   text " ∧ ";
+                   text (Formula.to_string formula);
+                 end;
+               end;
+               button ~attrs:[ A.class_ "rulename"
+                             ; E.onclick (ApplyRule (path, Conj_elim2 (Formula.Atom parameter)))] begin
+                 text "∧-E2"
+               end
+             end;
+             formulabox path formula
+          | `Disj_elim (param1, param2) ->
+             premisebox begin%concat
+               proofbox begin
+                 div ~attrs:[A.class_ "formulabox"] begin%concat
+                   input ~attrs:[ A.class_ "formulainput"
+                                ; A.value param1
+                                ; A.placeholder "<formula>"
+                                ; E.oninput (fun ~value -> Update (path, `Disj_elim (value, param2)))
+                                ];
+                   text " ∨ ";
+                   input ~attrs:[ A.class_ "formulainput"
+                                ; A.value param2
+                                ; A.placeholder "<formula>"
+                                ; E.oninput (fun ~value -> Update (path, `Disj_elim (param1, value)))
+                                ];
+                 end
+               end;
+               div ~attrs:[A.class_ "assumptionbox"] begin%concat
+                 div ~attrs:[A.class_ "assumption"] begin%concat
+                   text "with ";
+                   text (if param1 = "" then "<formula>" else param1);
+                   text " ..."
+                 end;
+                 proofbox begin
+                   div ~attrs:[A.class_ "formulabox"] begin
+                     text (Formula.to_string formula)
+                   end
+                 end
+               end;
+               div ~attrs:[A.class_ "assumptionbox"] begin%concat
+                 div ~attrs:[A.class_ "assumption"] begin%concat
+                   text "with ";
+                   text (if param2 = "" then "<formula>" else param2);
+                   text " ..."
+                 end;
+                 proofbox begin
+                   div ~attrs:[A.class_ "formulabox"] begin
+                     text (Formula.to_string formula)
+                   end
+                 end
+               end;
+               button ~attrs:[ A.class_ "rulename"
+                             ; E.onclick (ApplyRule (path, Disj_elim (Formula.Atom param1, Formula.Atom param2)))] begin
+                 text "∨-E"
+               end
+             end
       end
 
-    and render_box path {subtree;assumption} = match assumption with
+    and render_box assumps path {subtree;assumption} = match assumption with
       | Some assumption ->
          div ~attrs:[A.class_ "assumptionbox"] begin%concat
            div ~attrs:[A.class_ "assumption"] begin%concat
              text "with ";
-             text (string_of_formula assumption);
+             text (Formula.to_string assumption);
              text " ..."
            end;
-           render path subtree
+           render (assumption::assumps) path subtree
          end
       | None ->
-         render path subtree
+         render assumps path subtree
     in
-    render [] proof
+    render [] [] proof
+
+  let update action prooftree = match action with
+    | ApplyRule (path, Assumption) ->
+       by_assumption path prooftree
+
+    | ApplyRule (path, Implies_intro) ->
+       implies_intro path prooftree
+    | ApplyRule (path, Implies_elim f) ->
+       implies_elim f path prooftree
+
+    | ApplyRule (path, Conj_intro) ->
+       conj_intro path prooftree
+    | ApplyRule (path, Conj_elim1 f) ->
+       conj_elim1 f path prooftree
+    | ApplyRule (path, Conj_elim2 f) ->
+       conj_elim2 f path prooftree
+
+    | ApplyRule (path, Disj_intro1) ->
+       disj_intro1 path prooftree
+    | ApplyRule (path, Disj_intro2) ->
+       disj_intro2 path prooftree
+    | ApplyRule (path, Disj_elim (f1, f2)) ->
+       disj_elim f1 f2 path prooftree
+    | DoNothing ->
+       prooftree
+
+    | Update (path, partial) ->
+       update_tree (fun _ _ -> partial) path prooftree
 end

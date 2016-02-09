@@ -295,5 +295,11 @@ module type S = sig
     val checked : bool -> _ attribute
     val value   : string -> _ attribute
     val placeholder : string -> _ attribute
+
+    val label : string -> _ attribute
+
+    (* 'option' attributes *)
+    val selected : bool -> _ attribute
+    val disabled : bool -> _ attribute
   end
 end
