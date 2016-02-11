@@ -3,6 +3,7 @@ type partial =
   | Partial_Conj_elim1   of string
   | Partial_Conj_elim2   of string
   | Partial_Disj_elim    of string * string
+  | Partial_Not_elim     of string
 
 type prooftree =
   { formula : Formula.t
@@ -116,6 +117,16 @@ let false_elim =
   update_tree (fun _assumps _f ->
       `Rule ("⊥-E", [ (None, Formula.False) ]))
 
+let not_intro =
+  update_tree @@ fun _assumps -> function
+    | Formula.Not f -> `Rule ("¬-I", [ (Some f, Formula.False) ])
+    | _ -> invalid_arg "incorrectly applied not_intro"
+
+let not_elim f =
+  update_tree @@ fun _assumps -> function
+    | Formula.False -> `Rule ("¬-E", [ (None, Formula.Not f); (None, f) ])
+    | _ -> invalid_arg "incorrectly applied not_elim"
+
 let by_assumption =
   update_tree (fun assumps f ->
       if List.mem f assumps then `Rule ("assumption", [])
@@ -144,6 +155,8 @@ module UI = struct
     | Disj_intro2
     | Disj_elim of Formula.t * Formula.t
     | False_elim
+    | Not_intro
+    | Not_elim of Formula.t
 
   type action =
     | ApplyRule of goal * rulename
@@ -175,6 +188,8 @@ module UI = struct
       | "disj_intro2" -> ApplyRule (path, Disj_intro2)
       | "disj_elim"   -> Update (path, Partial_Disj_elim ("", ""))
       | "false_elim"  -> ApplyRule (path, False_elim)
+      | "not_intro"   -> ApplyRule (path, Not_intro)
+      | "not_elim"    -> Update (path, Partial_Not_elim "")
       | _             -> DoNothing
     in
     select ~attrs:[ A.title "Select a rule to apply"
@@ -205,6 +220,13 @@ module UI = struct
             option ~attrs:[A.value "disj_intro1"; A.disabled disable] (text "∨-I1");
             option ~attrs:[A.value "disj_intro2"; A.disabled disable] (text "∨-I2");
             option ~attrs:[A.value "disj_elim"] (text "∨-E");
+          end;
+        optgroup ~attrs:[A.label "Negation (¬)"]
+          begin%concat
+            let disable = match formula with Formula.Not _ -> false | _ -> true in
+            option ~attrs:[A.value "not_intro"; A.disabled disable] (text "¬-I");
+            let disable = match formula with Formula.False -> false | _ -> true in
+            option ~attrs:[A.value "not_elim"; A.disabled disable] (text "¬-E");
           end;
         optgroup ~attrs:[A.label "False (⊥)"]
           begin%concat
@@ -357,6 +379,34 @@ module UI = struct
                     enabled_rule_button "∨-E" path (Disj_elim (f1, f2)))
              end;
              formulabox path formula
+          | Partial (Partial_Not_elim parameter) ->
+             premisebox begin%concat
+               proofbox begin
+                 div ~attrs:[A.class_ "formulabox"] begin%concat
+                   text "¬ ";
+                   input ~attrs:[ A.class_ "formulainput"
+                                ; A.value parameter
+                                ; A.placeholder "<formula>"
+                                ; E.oninput (fun ~value -> Update (path, Partial_Not_elim value))
+                                ]
+                 end;
+               end;
+               proofbox begin
+                 div ~attrs:[A.class_ "formulabox"] begin%concat
+                   input ~attrs:[ A.class_ "formulainput"
+                                ; A.value parameter
+                                ; A.placeholder "<formula>"
+                                ; E.oninput (fun ~value -> Update (path, Partial_Not_elim value))
+                                ];
+                 end;
+               end;
+               (match parse_formula parameter with
+                 | None ->
+                    disabled_rule_button "¬-E"
+                 | Some f ->
+                    enabled_rule_button "¬-E" path (Not_elim f))
+             end;
+             formulabox path formula
       end
 
     and render_box assumps path {subtree;assumption} = match assumption with
@@ -399,6 +449,11 @@ module UI = struct
 
     | ApplyRule (path, False_elim) ->
        false_elim path prooftree
+
+    | ApplyRule (path, Not_intro) ->
+       not_intro path prooftree
+    | ApplyRule (path, Not_elim f) ->
+       not_elim f path prooftree
 
     | DoNothing ->
        prooftree

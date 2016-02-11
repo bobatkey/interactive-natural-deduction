@@ -10,6 +10,7 @@ rule token = parse
 | "->"    { ARROW }
 | "/\\"   { CONJ }
 | "\\/"   { DISJ }
+| "!" | "~" | "¬" { NOT }
 | "("     { LPAREN }
 | ")"     { RPAREN }
 | "False" { FALSE }

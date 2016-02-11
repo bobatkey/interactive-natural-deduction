@@ -9,6 +9,7 @@ open Formula
 %token CONJ
 %token DISJ
 %token FALSE
+%token NOT
 %token LPAREN
 %token RPAREN
 %token EOF
@@ -16,6 +17,7 @@ open Formula
 %right ARROW
 %left CONJ
 %left DISJ
+%left NOT
 
 %start <Formula.t> whole_formula
 
@@ -29,5 +31,6 @@ formula:
   | f1=formula; ARROW; f2=formula { Implies (f1, f2) }
   | f1=formula; CONJ; f2=formula  { And (f1, f2) }
   | f1=formula; DISJ; f2=formula  { Or (f1, f2) }
+  | NOT; f=formula                { Not f }
   | LPAREN; f=formula; RPAREN     { f }
   | FALSE                         { False }
