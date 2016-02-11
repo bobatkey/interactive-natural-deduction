@@ -127,6 +127,10 @@ let not_elim f =
     | Formula.False -> `Rule ("¬-E", [ (None, Formula.Not f); (None, f) ])
     | _ -> invalid_arg "incorrectly applied not_elim"
 
+let raa =
+  update_tree @@ fun _assumps f ->
+  `Rule ("RAA", [ (Some (Formula.Not f), Formula.False) ])
+
 let by_assumption =
   update_tree (fun assumps f ->
       if List.mem f assumps then `Rule ("assumption", [])
@@ -157,6 +161,7 @@ module UI = struct
     | False_elim
     | Not_intro
     | Not_elim of Formula.t
+    | RAA
 
   type action =
     | ApplyRule of goal * rulename
@@ -190,6 +195,7 @@ module UI = struct
       | "false_elim"  -> ApplyRule (path, False_elim)
       | "not_intro"   -> ApplyRule (path, Not_intro)
       | "not_elim"    -> Update (path, Partial_Not_elim "")
+      | "raa"         -> ApplyRule (path, RAA)
       | _             -> DoNothing
     in
     select ~attrs:[ A.title "Select a rule to apply"
@@ -231,6 +237,10 @@ module UI = struct
         optgroup ~attrs:[A.label "False (⊥)"]
           begin%concat
             option ~attrs:[A.value "false_elim"] (text "⊥-E")
+          end;
+        optgroup ~attrs:[A.label "Classical logic"]
+          begin%concat
+            option ~attrs:[A.value "raa"] (text "By contraction")
           end
       end
 
@@ -454,6 +464,9 @@ module UI = struct
        not_intro path prooftree
     | ApplyRule (path, Not_elim f) ->
        not_elim f path prooftree
+
+    | ApplyRule (path, RAA) ->
+       raa path prooftree
 
     | DoNothing ->
        prooftree

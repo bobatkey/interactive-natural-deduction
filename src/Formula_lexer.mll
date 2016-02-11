@@ -7,9 +7,9 @@ let ident   = ['a'-'z' 'A'-'Z' '_'] ['a'-'z' 'A'-'Z' '0'-'9' '_']*
 
 rule token = parse
 | white   { token lexbuf }
-| "->"    { ARROW }
-| "/\\"   { CONJ }
-| "\\/"   { DISJ }
+| "->" | "→"   { ARROW }
+| "/\\" | "∧"  { CONJ }
+| "\\/" | "∨"  { DISJ }
 | "!" | "~" | "¬" { NOT }
 | "("     { LPAREN }
 | ")"     { RPAREN }
