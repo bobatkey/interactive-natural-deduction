@@ -1,9 +1,13 @@
-open Generalities
-
 let ( !$ ) x = Js.string x
 let ( >>?= ) = Js.Opt.iter
+let ( <.> ) f g x = f (g x)
 
 (**********************************************************************)
+module String = struct
+  include String
+  module Map = Map.Make (String)
+end
+
 type attributes = string String.Map.t
 
 type 'action event =
