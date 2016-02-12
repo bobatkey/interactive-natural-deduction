@@ -240,7 +240,7 @@ module UI = struct
           end;
         optgroup ~attrs:[A.label "Classical logic"]
           begin%concat
-            option ~attrs:[A.value "raa"] (text "By contraction")
+            option ~attrs:[A.value "raa"] (text "By contradiction")
           end
       end
 
