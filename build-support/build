@@ -1,0 +1,5 @@
+#!/bin/sh
+
+cd build-support
+ocamlc -o of_merlin of_merlin.ml
+ocamlc -o mlbindep mlbindep.ml

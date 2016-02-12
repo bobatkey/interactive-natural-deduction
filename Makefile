@@ -15,3 +15,4 @@ natural-deduction.js: src/_build/byte_bin/natural-deduction
 
 clean:
 	rm -rf $(BUILDDIRS)
+	rm natural-deduction.js
