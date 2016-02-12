@@ -9,18 +9,20 @@ How to make it go (on Linux, or other Unix-a-like):
 
   2. Install `ocamlfind`: `opam install ocamlfind`
 
-  3. Install `js_of_ocaml`: `opam install js_of_ocaml`
+  3. Install `menhir`: `opam install menhir`
 
-  4. Install my [`ppx-monoid`](https://github.com/bobatkey/ppx-monoid)
+  4. Install `js_of_ocaml`: `opam install js_of_ocaml`
+
+  5. Install my [`ppx-monoid`](https://github.com/bobatkey/ppx-monoid)
      syntax extension for making values of monoids easier to
      construct: `opam pin add ppx-monoid git@github.com:bobatkey/ppx-monoid.git`
 
-  5. Clone this repository and `cd` into the directory.
+  6. Clone this repository and `cd` into the directory.
 
-  6. Type `build-support/build`
+  7. Type `build-support/build`
 
-  7. Type `make`. This ought to generate a `natural-deduction.js` file.
+  8. Type `make`. This ought to generate a `natural-deduction.js` file.
 
-  8. Load the file `natural-deduction.html` into a browser. Tested
+  9. Load the file `natural-deduction.html` into a browser. Tested
      with Firefox and Chromium.
 
