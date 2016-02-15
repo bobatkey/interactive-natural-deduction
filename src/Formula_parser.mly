@@ -1,6 +1,6 @@
 %{
 
-open Formula
+open Formula_ast
 
 %}
 
@@ -19,7 +19,7 @@ open Formula
 %left DISJ
 %left NOT
 
-%start <Formula.t> whole_formula
+%start <Formula_ast.t> whole_formula
 
 %%
 

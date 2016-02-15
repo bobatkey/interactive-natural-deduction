@@ -20,16 +20,10 @@ and proofbox =
   ; assumption : Formula.t option
   }
 
+
 (**********************************************************************)
 let initial formula =
   { formula; status = Open }
-
-(**********************************************************************)
-let parse_formula string =
-  let lb = Lexing.from_string string in
-  match Formula_parser.whole_formula Formula_lexer.token lb with
-    | exception Formula_parser.Error -> None
-    | f -> Some f
 
 (**********************************************************************)
 let update_nth f i l =
@@ -245,12 +239,11 @@ module UI = struct
       end
 
   let disabled_rule_button label =
-    button ~attrs:[ (*A.class_ "rulename";*) A.disabled true ]
+    button ~attrs:[A.disabled true]
       (text ("apply " ^ label))
 
   let enabled_rule_button label path rule =
-    button ~attrs:[ (*A.class_ "rulename"
-                      ; *)E.onclick (ApplyRule (path, rule)) ]
+    button ~attrs:[E.onclick (ApplyRule (path, rule))]
       (text ("apply " ^ label))
 
   let render proof : action Dynamic_HTML.t =
@@ -292,7 +285,7 @@ module UI = struct
                                 ];
                  end;
                end;
-               (match parse_formula parameter with
+               (match Formula.of_string parameter with
                  | None ->
                     disabled_rule_button "→-E"
                  | Some f ->
@@ -312,7 +305,7 @@ module UI = struct
                                 ];
                  end;
                end;
-               (match parse_formula parameter with
+               (match Formula.of_string parameter with
                  | None ->
                     disabled_rule_button "∧-E1"
                  | Some f ->
@@ -332,7 +325,7 @@ module UI = struct
                    text (Formula.to_string formula);
                  end;
                end;
-               (match parse_formula parameter with
+               (match Formula.of_string parameter with
                  | None ->
                     disabled_rule_button "∧-E2"
                  | Some f ->
@@ -340,8 +333,8 @@ module UI = struct
              end;
              formulabox path formula
           | Partial (Partial_Disj_elim (param1, param2)) ->
-             let f1 = parse_formula param1 in
-             let f2 = parse_formula param2 in
+             let f1 = Formula.of_string param1 in
+             let f2 = Formula.of_string param2 in
              premisebox begin%concat
                proofbox begin%concat
                  div ~attrs:[A.class_ "formulabox"] begin%concat
@@ -410,7 +403,7 @@ module UI = struct
                                 ];
                  end;
                end;
-               (match parse_formula parameter with
+               (match Formula.of_string parameter with
                  | None ->
                     disabled_rule_button "¬-E"
                  | Some f ->

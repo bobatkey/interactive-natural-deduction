@@ -5,9 +5,3 @@ type t =
   | Or      of t * t
   | Not     of t
   | False
-
-val (@->) : t -> t -> t
-
-val to_string : ?unicode:bool -> t -> string
-
-val of_string : string -> t option

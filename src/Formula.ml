@@ -1,4 +1,4 @@
-type t =
+type t = Formula_ast.t =
   | Atom    of string
   | Implies of t * t
   | And     of t * t
@@ -53,3 +53,9 @@ let rec to_string ?(unicode=true) f =
   in
   to_string f 10
 
+(**********************************************************************)
+let of_string string =
+  let lb = Lexing.from_string string in
+  match Formula_parser.whole_formula Formula_lexer.token lb with
+    | exception Formula_parser.Error -> None
+    | f -> Some f

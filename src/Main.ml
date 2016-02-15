@@ -52,7 +52,7 @@ module App = struct
              input ~attrs:[ A.value string
                           ; A.class_ "initialformulaentry"
                           ; E.oninput (fun ~value -> ChangeFormula value) ];
-             (match ProofTree.parse_formula string with
+             (match Formula.of_string string with
                | None ->
                   button ~attrs:[ A.disabled true ] (text "Start Proving...")
                | Some f ->

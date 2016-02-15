@@ -1,10 +1,8 @@
-val parse_formula : string -> Formula.t option
-
 type prooftree
 
-type goal
-
 val initial : Formula.t -> prooftree
+
+type goal
 
 type rule = goal -> prooftree -> prooftree
 
