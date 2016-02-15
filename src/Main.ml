@@ -16,6 +16,7 @@ module App = struct
   type action =
     | ChangeFormula of string
     | StartProving  of Formula.t
+    | StartAgain
     | ProofAction   of PTU.action
     | Undo
 
@@ -29,10 +30,11 @@ module App = struct
          div ~attrs:[A.style "display: flex; flex-direction: column; height: 100%; justify-content: space-between"] begin%concat
            div ~attrs:[A.style "align-self: flex-start; width:100%"] begin
              div ~attrs:[A.style "display: flex; justify-content: center; align-items: flex-start; width:100%"] begin%concat
-               div ~attrs:[A.style "flex: none"] begin
-                 match history with
+               div ~attrs:[A.style "flex: none"] begin%concat
+                 (match history with
                    | [] -> button ~attrs:[A.disabled true] (text "Undo")
-                   | _  -> button ~attrs:[E.onclick Undo] (text "Undo")
+                   | _  -> button ~attrs:[E.onclick Undo] (text "Undo"));
+                 button ~attrs:[E.onclick StartAgain] (text "Enter new formula")
                end
              end
            end;
@@ -63,6 +65,7 @@ module App = struct
     | StartScreen _,     StartProving f  -> Proving ([], ProofTree.initial f)
     | Proving (h, t),    ProofAction a   -> Proving (t::h, PTU.update a t)
     | Proving (t::h, _), Undo            -> Proving (h, t)
+    | Proving _,         StartAgain      -> initial
     | _,                 _               -> state
 
 end
