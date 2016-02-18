@@ -4,7 +4,7 @@ Live version: [http://bentnib.org/docs/natural-deduction.html].
 
 How to make it go (on Linux, or other Unix-a-like):
 
-  1. Install [OCaml](http://ocaml.org) with OPAM. I use version 4.03.2
+  1. Install [OCaml](http://ocaml.org) with OPAM. I use version 4.02.3
      of OCaml and 1.2.2 of OPAM.
 
   2. Install some OPAM packages: `opam install ocamlfind menhir
