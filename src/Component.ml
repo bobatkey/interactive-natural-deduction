@@ -1,7 +1,3 @@
-(* FIXME: stick these two somewhere else *)
-let ( !$ ) x = Js.string x
-let ( >>?= ) = Js.Opt.iter
-
 module type S = sig
   type state
   type action
@@ -11,11 +7,15 @@ module type S = sig
   val initial : state
 end
 
-let run render update parent state =
+type t = (module S)
+
+let run parent (module C : S) =
   let current_tree = ref None in
   let rec loop state =
-    let handler action = loop (update action state) in
-    let html = render state in
+    let handler action =
+      loop (C.update action state)
+    in
+    let html = C.render state in
     (match !current_tree with
       | None ->
          let realised_tree =
@@ -29,10 +29,12 @@ let run render update parent state =
          current_tree := Some realised_tree);
     Js._false
   in
-  loop state
+  loop C.initial
 
-type t = (module S)
-
-let attach ~parent_id (module C : S) =
-  Dom_html.document##getElementById !$parent_id >>?= fun parent ->
-  ignore (run C.render C.update parent C.initial)
+let attach ~parent_id component =
+  let parent_id = Js.string parent_id in
+  let node_opt  = Dom_html.document##getElementById parent_id in
+  match Js.Opt.to_option node_opt with
+    | None -> () (* FIXME: throw an exception? *)
+    | Some parent ->
+       ignore (run parent component)
