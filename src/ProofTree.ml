@@ -18,6 +18,7 @@ let initial formula =
   { formula; status = Open }
 
 (**********************************************************************)
+(* FIXME: use some more efficient data structure here. *)
 let update_nth f i l =
   let rec update i l = match i, l with
     | 0, x::xs -> f x::xs
