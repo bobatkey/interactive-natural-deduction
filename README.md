@@ -8,7 +8,7 @@ How to make it go (on Linux, or other Unix-a-like):
      of OCaml and 1.2.2 of OPAM.
 
   2. Install some OPAM packages: `opam install ocamlfind menhir
-     js_of_ocaml ppx_monoid`
+     js_of_ocaml ppx_monoid rresult`
 
   3. Clone this repository and `cd` into the directory.
 
