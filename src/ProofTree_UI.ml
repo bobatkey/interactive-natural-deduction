@@ -33,67 +33,67 @@ let formulabox path formula =
     (text (Formula.to_string formula))
 
 let rule_selector assumps path formula =
-  let handler ~value = match value with
-    | "assumption"  -> ApplyRule (path, C.Assumption)
-    | "imp_intro"   -> ApplyRule (path, C.Implies_intro)
-    | "imp_elim"    -> Update (path, Partial_Implies_elim "")
-    | "conj_intro"  -> ApplyRule (path, C.Conj_intro)
-    | "conj_elim1"  -> Update (path, Partial_Conj_elim1 "")
-    | "conj_elim2"  -> Update (path, Partial_Conj_elim2 "")
-    | "disj_intro1" -> ApplyRule (path, C.Disj_intro1)
-    | "disj_intro2" -> ApplyRule (path, C.Disj_intro2)
-    | "disj_elim"   -> Update (path, Partial_Disj_elim ("", ""))
-    | "false_elim"  -> ApplyRule (path, C.False_elim)
-    | "not_intro"   -> ApplyRule (path, C.Not_intro)
-    | "not_elim"    -> Update (path, Partial_Not_elim "")
-    | "raa"         -> ApplyRule (path, C.RAA)
-    | _             -> DoNothing
-  in
-  select ~attrs:[ A.title "Select a rule to apply"
-                ; E.onchange handler
-                ; A.class_ "ruleselector" ]
-    begin%concat
-      option ~attrs:[A.selected true; A.value "nothing"] (text "Select rule...");
-      optgroup ~attrs:[A.label "Structural"] begin
-        let disable = not (List.mem formula assumps) in
-        option ~attrs:[A.value "assumption"; A.disabled disable] (text "assumption");
-      end;
-      optgroup ~attrs:[A.label "Implication (→)"]
-        begin%concat
-          let disable = match formula with Formula.Implies _ -> false | _ -> true in
-          option ~attrs:[A.value "imp_intro"; A.disabled disable] (text "→-I");
-          option ~attrs:[A.value "imp_elim"] (text "→-E");
-        end;
-      optgroup ~attrs:[A.label "Conjunction (∧)"]
-        begin%concat
-          let disable = match formula with Formula.And _ -> false | _ -> true in
-          option ~attrs:[A.value "conj_intro"; A.disabled disable] (text "∧-I");
-          option ~attrs:[A.value "conj_elim1"] (text "∧-E1");
-          option ~attrs:[A.value "conj_elim2"] (text "∧-E2");
-        end;
-      optgroup ~attrs:[A.label "Disjunction (∨)"]
-        begin%concat
-          let disable = match formula with Formula.Or _ -> false | _ -> true in
-          option ~attrs:[A.value "disj_intro1"; A.disabled disable] (text "∨-I1");
-          option ~attrs:[A.value "disj_intro2"; A.disabled disable] (text "∨-I2");
-          option ~attrs:[A.value "disj_elim"] (text "∨-E");
-        end;
-      optgroup ~attrs:[A.label "Negation (¬)"]
-        begin%concat
-          let disable = match formula with Formula.Not _ -> false | _ -> true in
-          option ~attrs:[A.value "not_intro"; A.disabled disable] (text "¬-I");
-          let disable = match formula with Formula.False -> false | _ -> true in
-          option ~attrs:[A.value "not_elim"; A.disabled disable] (text "¬-E");
-        end;
-      optgroup ~attrs:[A.label "False (⊥)"]
-        begin%concat
-          option ~attrs:[A.value "false_elim"] (text "⊥-E")
-        end;
-      optgroup ~attrs:[A.label "Classical logic"]
-        begin%concat
-          option ~attrs:[A.value "raa"] (text "By contradiction")
-        end
-    end
+  let open DropDown in
+  DropDown.make
+    ~attrs:[ A.title "Select a rule to apply"
+           ; A.class_ "ruleselector"
+           ]
+    [ option ~selected:true ~action:DoNothing
+        (text "Select rule...")
+    ; group ~label:"Structural"
+        [ option ~enabled:(List.mem formula assumps)
+            ~action:(ApplyRule (path, C.Assumption))
+            (text "assumption")
+        ]
+    ; group ~label:"Implication (→)"
+        [ option ~enabled:(Formula.is_implication formula)
+            ~action:(ApplyRule (path, C.Implies_intro))
+            (text "→-I")
+        ; option
+            ~action:(Update (path, Partial_Implies_elim ""))
+            (text "→-E")
+        ]
+    ; group ~label:"Conjunction (∧)"
+        [ option ~enabled:(Formula.is_conjunction formula)
+            ~action:(ApplyRule (path, C.Conj_intro))
+            (text "∧-I")
+        ; option
+            ~action:(Update (path, Partial_Conj_elim1 ""))
+            (text "∧-E1")
+        ; option
+            ~action:(Update (path, Partial_Conj_elim2 ""))
+            (text "∧-E2")
+        ]
+    ; group ~label:"Disjunction (∨)"
+        [ option ~enabled:(Formula.is_disjunction formula)
+            ~action:(ApplyRule (path, C.Disj_intro1))
+            (text "∨-I1")
+        ; option ~enabled:(Formula.is_disjunction formula)
+            ~action:(ApplyRule (path, C.Disj_intro2))
+            (text "∨-I2")
+        ; option
+            ~action:(Update (path, Partial_Disj_elim ("", "")))
+            (text "∨-E")
+        ]
+    ; group ~label:"Negation (¬)"
+        [ option ~enabled:(Formula.is_negation formula)
+            ~action:(ApplyRule (path, C.Not_intro))
+            (text "¬-I")
+        ; option
+            ~action:(Update (path, Partial_Not_elim ""))
+            (text "¬-E")
+        ]
+    ; group ~label:"False (⊥)"
+        [ option
+            ~action:(ApplyRule (path, C.False_elim))
+            (text "⊥-E")
+        ]
+    ; group ~label:"Classical logic"
+        [ option
+            ~action:(ApplyRule (path, C.RAA))
+            (text "By contradiction")
+        ]
+    ]
 
 let disabled_rule_button label =
   button ~attrs:[A.disabled true]
@@ -105,12 +105,18 @@ let enabled_rule_button label path rule =
 
 let render_partial point = function
   | None ->
+     let assumptions = PT.assumptions point and formula = PT.formula point in
      proofbox begin%concat
-       premisebox begin%concat
-         rule_selector (PT.assumptions point) point (PT.formula point)
-       end;
-       formulabox point (PT.formula point)
+       premisebox (rule_selector assumptions point formula);
+       formulabox point formula
      end
+
+  (* Each 'partial' turns into
+     1) a sequence of premises which might have (connected) input boxes in them
+     2) a button, which is activated when the input is valid
+
+     Can this be generified?
+  *)
 
   | Some (Partial_Implies_elim parameter) ->
      let formula = PT.formula point in
@@ -287,19 +293,20 @@ let render_rule_application point name rendered_premises =
     end;
     formulabox point (PT.formula point)
   end
-    
-let render_box assumption rendered_subtree = match assumption with
-  | Some assumption ->
-     div ~attrs:[A.class_ "assumptionbox"] begin%concat
-       div ~attrs:[A.class_ "assumption"] begin%concat
-         text "with ";
-         text (Formula.to_string assumption);
-         text " ..."
-       end;
+
+let render_box assumption rendered_subtree =
+  match assumption with
+    | Some assumption ->
+       div ~attrs:[A.class_ "assumptionbox"] begin%concat
+         div ~attrs:[A.class_ "assumption"] begin%concat
+           text "with ";
+           text (Formula.to_string assumption);
+           text " ..."
+         end;
+         rendered_subtree
+       end
+    | None ->
        rendered_subtree
-     end
-  | None ->
-     rendered_subtree
 
 let render prooftree =
   PT.fold

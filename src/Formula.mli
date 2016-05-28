@@ -11,3 +11,8 @@ val (@->) : t -> t -> t
 val to_string : ?unicode:bool -> t -> string
 
 val of_string : string -> t option
+
+val is_implication : t -> bool
+val is_conjunction : t -> bool
+val is_disjunction : t -> bool
+val is_negation    : t -> bool

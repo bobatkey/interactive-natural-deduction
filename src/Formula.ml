@@ -59,3 +59,10 @@ let of_string string =
   match Formula_parser.whole_formula Formula_lexer.token lb with
     | exception Formula_parser.Error -> None
     | f -> Some f
+
+(**********************************************************************)
+let is_implication = function Implies _ -> true | _ -> false
+let is_conjunction = function And _ -> true | _ -> false
+let is_disjunction = function Or _ -> true | _ -> false
+let is_negation    = function Not _ -> true | _ -> false
+
