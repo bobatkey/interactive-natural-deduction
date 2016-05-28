@@ -1,45 +1,37 @@
-type 'hole prooftree = private
-  { formula : Formula.t
-  ; status  : 'hole status
-  }
+open Rresult
 
-and 'hole status = private
-  | Open
-  | Partial of 'hole
-  | Rule    of string * 'hole proofbox list
+module type CALCULUS = sig
+  type formula
 
-and 'hole proofbox = private
-  { subtree    : 'hole prooftree
-  ; assumption : Formula.t option
-  }
+  type assumption
 
-(**********************************************************************)
-val initial : Formula.t -> 'hole prooftree
+  type rule
 
-(**********************************************************************)
-type goal = int list
+  val apply : rule -> assumption list -> formula ->
+    ((assumption option * formula) list, R.msg) result
+end
 
-type 'hole rule = goal -> 'hole prooftree -> 'hole prooftree
+module Make (C : CALCULUS) : sig
+  type 'hole prooftree
 
-val by_assumption : 'hole rule
-val makeopen : 'hole rule
+  type 'hole point
 
-val implies_intro : 'hole rule
-val implies_elim : Formula.t -> 'hole rule
+  val initial : C.formula -> 'hole prooftree
 
-val conj_intro: 'hole rule
-val conj_elim1 : Formula.t -> 'hole rule
-val conj_elim2 : Formula.t -> 'hole rule
+  val formula : 'hole point -> C.formula
 
-val disj_intro1 : 'hole rule
-val disj_intro2 : 'hole rule
-val disj_elim : Formula.t -> Formula.t -> 'hole rule
+  val assumptions : 'hole point -> C.assumption list
 
-val false_elim : 'hole rule
+  val fold :
+    ('hole point -> 'hole option -> 'a) ->
+    ('hole point -> C.rule -> 'b list -> 'a) ->
+    (C.assumption option -> 'a -> 'b) ->
+    'hole prooftree ->
+    'a
 
-val not_intro : 'hole rule
-val not_elim : Formula.t -> 'hole rule
+  val apply : C.rule -> 'a point -> ('a prooftree, R.msg) result
 
-val raa : 'hole rule
+  val make_open : 'hole point -> 'hole prooftree
 
-val set_partial : 'hole -> 'hole rule
+  val set_partial : 'hole -> 'hole point -> 'hole prooftree
+end

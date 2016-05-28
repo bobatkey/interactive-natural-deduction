@@ -1,6 +1,7 @@
 PKG js_of_ocaml
 PKG js_of_ocaml.ppx
 PKG ppx_monoid
+PKG rresult
 FLG -safe-string
 S .
 B _build

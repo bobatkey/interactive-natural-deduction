@@ -1,138 +1,122 @@
-type 'hole prooftree =
-  { formula : Formula.t
-  ; status  : 'hole status
-  }
+open Rresult
 
-and 'hole status =
-  | Open
-  | Partial of 'hole
-  | Rule    of string * 'hole proofbox list
+module type CALCULUS = sig
+  type formula
 
-and 'hole proofbox =
-  { subtree    : 'hole prooftree
-  ; assumption : Formula.t option
-  }
+  type assumption
 
-(**********************************************************************)
-let initial formula =
-  { formula; status = Open }
+  type rule
 
-(**********************************************************************)
-(* FIXME: use some more efficient data structure here. *)
-let update_nth f i l =
-  let rec update i l = match i, l with
-    | 0, x::xs -> f x::xs
-    | n, x::xs -> x::update (n-1) xs
-    | _, _     -> invalid_arg "update_nth"
-  in
-  update i l
+  val apply : rule -> assumption list -> formula ->
+    ((assumption option * formula) list, R.msg) result
+end
 
-type goal = int list
+module Make (C : CALCULUS) = struct
+  open C
 
-type 'hole rule = goal -> 'hole prooftree -> 'hole prooftree
+  type 'hole prooftree =
+    { formula : formula
+    ; status  : 'hole status
+    }
 
-let update_tree update_node path tree =
-  let rec update_tree assumps path node =
-    match path, node.status with
-      | [], _ ->
-         (match update_node assumps node.formula with
-           | `Open ->
-              { node with status = Open }
-           | `Rule (name, premises) ->
-              let premises =
-                List.map
-                  (fun (assumption,formula) ->
-                     {assumption;subtree={formula;status=Open}})
-                  premises
-              in
-              { node with status = Rule (name, premises) }
-           | `Partial p ->
-              { node with status = Partial p })
-      | pos::path, Rule (name, premises) ->
-         let premises = update_nth (update_box assumps path) pos premises in
-         { node with status = Rule (name, premises) }
-      | _, _ ->
-         invalid_arg "mismatched path" (* This shouldn't happen *)
-  and update_box assumps path {assumption;subtree} =
-    match assumption with
-      | None   -> {assumption; subtree = update_tree assumps path subtree}
-      | Some f -> {assumption; subtree = update_tree (f::assumps) path subtree}
-  in
-  update_tree [] (List.rev path) tree
+  and 'hole status =
+    | Partial of 'hole option
+    | Rule    of rule * 'hole proofbox list
 
-let implies_intro goal =
-  update_tree (fun _assumps formula -> match formula with
-      | Formula.Implies (f1, f2) -> `Rule ("→-I", [ (Some f1, f2) ])
-      | _ -> invalid_arg "incorrectly applied implies_intro")
-    goal
+  and 'hole proofbox =
+    { subtree    : 'hole prooftree
+    ; assumption : assumption option
+    }
 
-let implies_elim f1 =
-  update_tree (fun _assumps f2 ->
-      `Rule ("→-E", [ (None, Formula.Implies (f1, f2)); (None, f1) ]))
+  let initial formula =
+    { formula; status = Partial None }
 
-let conj_intro goal =
-  update_tree (fun _assumps -> function
-      | Formula.And (f1, f2) -> `Rule ("∧-I", [ (None, f1); (None, f2) ])
-      | _ -> invalid_arg "incorrectly applied conj_intro")
-    goal
+  (* A tree 'turned inside out' to expose a particular point *)
+  type 'partial step =
+    { step_formula    : formula
+    ; step_rule       : rule
+    ; step_before     : 'partial proofbox list
+    ; step_assumption : assumption option
+    ; step_after      : 'partial proofbox list
+    }
 
-let conj_elim1 f2 =
-  update_tree (fun _assumps f1 ->
-      `Rule ("∧-E1", [ (None, Formula.And (f1, f2)) ]))
+  type 'partial point =
+    { pt_formula     : formula
+    ; pt_assumptions : assumption list
+    ; pt_status      : 'partial status
+    ; pt_context     : 'partial step list
+    }
 
-let conj_elim2 f1 =
-  update_tree (fun _assumps f2 ->
-      `Rule ("∧-E2", [ (None, Formula.And (f1, f2)) ]))
+  let formula {pt_formula} = pt_formula
+  let assumptions {pt_assumptions} = pt_assumptions
 
-let disj_intro1 goal =
-  update_tree (fun _assumps -> function
-      | Formula.Or (f1, f2) -> `Rule ("∨-I1", [ (None, f1) ])
-      | _ -> invalid_arg "incorrectly applied disj_intro1")
-    goal
+  let (@?::) x xs = match x with None -> xs | Some x -> x::xs
 
-let disj_intro2 goal =
-  update_tree (fun _assumps -> function
-      | Formula.Or (f1, f2) -> `Rule ("∨-I2", [ (None, f2) ])
-      | _ -> invalid_arg "incorrectly applied disj_intro2")
-    goal
+  let fold f_partial f_rule f_box prooftree =
+    let rec fold context assumps {formula;status} =
+      let here = { pt_formula     = formula
+                 ; pt_status      = status
+                 ; pt_context     = context
+                 ; pt_assumptions = assumps
+                 }
+      in
+      match status with
+        | Partial info ->
+           f_partial here info
+        | Rule (rulename, children) ->
+           let rec fold_children before after accum = match after with
+             | [] -> List.rev accum
+             | ({assumption;subtree} as box)::after ->
+                let step =
+                  { step_formula    = formula
+                  ; step_rule       = rulename
+                  ; step_before     = before
+                  ; step_assumption = assumption
+                  ; step_after      = after
+                  }
+                in
+                let result   = fold (step::context) (assumption@?::assumps) subtree in
+                let result   = f_box assumption result in
+                fold_children (box::before) after (result::accum)
+           in
+           let sub_results = fold_children [] children [] in
+           f_rule here rulename sub_results
+    in
+    fold [] [] prooftree
 
-let disj_elim f1 f2 =
-  update_tree (fun _assumps f ->
-      `Rule ("∨-E",
-             [ (None, Formula.Or (f1, f2))
-             ; (Some f1, f)
-             ; (Some f2, f)
-             ]))
+  let reconstruct formula status context =
+    let reconstruct_step subtree step =
+      let { step_formula    = formula
+          ; step_rule
+          ; step_before
+          ; step_assumption = assumption
+          ; step_after
+          } = step
+      in
+      let box = { assumption; subtree } in
+      { formula
+      ; status  = Rule (step_rule,
+                        List.rev_append step_before (box::step_after))
+      }
+    in
+    List.fold_left reconstruct_step {formula;status} context
 
-let false_elim goal =
-  update_tree (fun _assumps _f ->
-      `Rule ("⊥-E", [ (None, Formula.False) ]))
-    goal
+  let apply rule {pt_formula;pt_status;pt_context;pt_assumptions} =
+    match apply rule pt_assumptions pt_formula with
+      | Ok premises ->
+         let premises =
+           List.map
+             (fun (assumption, formula) ->
+                {assumption; subtree={formula;status=Partial None}})
+             premises
+         in
+         Ok (reconstruct pt_formula (Rule (rule, premises)) pt_context)
+      | Error err ->
+         Error err
 
-let not_intro goal =
-  update_tree (fun _assumps -> function
-      | Formula.Not f -> `Rule ("¬-I", [ (Some f, Formula.False) ])
-      | _ -> invalid_arg "incorrectly applied not_intro")
-    goal
+  let make_open {pt_formula;pt_context} =
+    reconstruct pt_formula (Partial None) pt_context
 
-let not_elim f =
-  update_tree @@ fun _assumps -> function
-    | Formula.False -> `Rule ("¬-E", [ (None, Formula.Not f); (None, f) ])
-    | _ -> invalid_arg "incorrectly applied not_elim"
-
-let raa goal =
-  update_tree (fun _assumps f ->
-      `Rule ("RAA", [ (Some (Formula.Not f), Formula.False) ]))
-    goal
-let by_assumption goal =
-  update_tree (fun assumps f ->
-      if List.mem f assumps then `Rule ("assumption", [])
-      else invalid_arg "assumption not applicable")
-    goal
-
-let makeopen goal =
-  update_tree (fun _assumps _f -> `Open)
-    goal
-
-let set_partial p =
-  update_tree (fun _assumps _f -> `Partial p)
+  let set_partial p {pt_formula;pt_context} =
+    reconstruct pt_formula (Partial (Some p)) pt_context
+end
