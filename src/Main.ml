@@ -10,7 +10,7 @@ module App = struct
   module PTU = ProofTree_UI
 
   type state =
-    | Proving     of ProofTree.prooftree list * ProofTree.prooftree
+    | Proving     of PTU.state list * PTU.state
     | StartScreen of string
 
   type action =
@@ -62,7 +62,7 @@ module App = struct
 
   let update action state = match state, action with
     | StartScreen _,     ChangeFormula s -> StartScreen s
-    | StartScreen _,     StartProving f  -> Proving ([], ProofTree.initial f)
+    | StartScreen _,     StartProving f  -> Proving ([], PTU.initial f)
     | Proving (h, t),    ProofAction a   -> Proving (t::h, PTU.update a t)
     | Proving (t::h, _), Undo            -> Proving (h, t)
     | Proving _,         StartAgain      -> initial

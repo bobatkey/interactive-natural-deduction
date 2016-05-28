@@ -1,22 +1,15 @@
-type partial =
-  | Partial_Implies_elim of string
-  | Partial_Conj_elim1   of string
-  | Partial_Conj_elim2   of string
-  | Partial_Disj_elim    of string * string
-  | Partial_Not_elim     of string
-
-type prooftree =
+type 'hole prooftree =
   { formula : Formula.t
-  ; status  : status
+  ; status  : 'hole status
   }
 
-and status =
+and 'hole status =
   | Open
-  | Rule    of string * proofbox list
-  | Partial of partial
+  | Partial of 'hole
+  | Rule    of string * 'hole proofbox list
 
-and proofbox =
-  { subtree    : prooftree
+and 'hole proofbox =
+  { subtree    : 'hole prooftree
   ; assumption : Formula.t option
   }
 
@@ -35,7 +28,7 @@ let update_nth f i l =
 
 type goal = int list
 
-type rule = goal -> prooftree -> prooftree
+type 'hole rule = goal -> 'hole prooftree -> 'hole prooftree
 
 let update_tree update_node path tree =
   let rec update_tree assumps path node =
@@ -66,19 +59,21 @@ let update_tree update_node path tree =
   in
   update_tree [] (List.rev path) tree
 
-let implies_intro =
+let implies_intro goal =
   update_tree (fun _assumps formula -> match formula with
       | Formula.Implies (f1, f2) -> `Rule ("→-I", [ (Some f1, f2) ])
       | _ -> invalid_arg "incorrectly applied implies_intro")
+    goal
 
 let implies_elim f1 =
   update_tree (fun _assumps f2 ->
       `Rule ("→-E", [ (None, Formula.Implies (f1, f2)); (None, f1) ]))
 
-let conj_intro =
+let conj_intro goal =
   update_tree (fun _assumps -> function
       | Formula.And (f1, f2) -> `Rule ("∧-I", [ (None, f1); (None, f2) ])
       | _ -> invalid_arg "incorrectly applied conj_intro")
+    goal
 
 let conj_elim1 f2 =
   update_tree (fun _assumps f1 ->
@@ -88,15 +83,17 @@ let conj_elim2 f1 =
   update_tree (fun _assumps f2 ->
       `Rule ("∧-E2", [ (None, Formula.And (f1, f2)) ]))
 
-let disj_intro1 =
+let disj_intro1 goal =
   update_tree (fun _assumps -> function
       | Formula.Or (f1, f2) -> `Rule ("∨-I1", [ (None, f1) ])
       | _ -> invalid_arg "incorrectly applied disj_intro1")
+    goal
 
-let disj_intro2 =
+let disj_intro2 goal =
   update_tree (fun _assumps -> function
       | Formula.Or (f1, f2) -> `Rule ("∨-I2", [ (None, f2) ])
       | _ -> invalid_arg "incorrectly applied disj_intro2")
+    goal
 
 let disj_elim f1 f2 =
   update_tree (fun _assumps f ->
@@ -106,31 +103,35 @@ let disj_elim f1 f2 =
              ; (Some f2, f)
              ]))
 
-let false_elim =
+let false_elim goal =
   update_tree (fun _assumps _f ->
       `Rule ("⊥-E", [ (None, Formula.False) ]))
+    goal
 
-let not_intro =
-  update_tree @@ fun _assumps -> function
-    | Formula.Not f -> `Rule ("¬-I", [ (Some f, Formula.False) ])
-    | _ -> invalid_arg "incorrectly applied not_intro"
+let not_intro goal =
+  update_tree (fun _assumps -> function
+      | Formula.Not f -> `Rule ("¬-I", [ (Some f, Formula.False) ])
+      | _ -> invalid_arg "incorrectly applied not_intro")
+    goal
 
 let not_elim f =
   update_tree @@ fun _assumps -> function
     | Formula.False -> `Rule ("¬-E", [ (None, Formula.Not f); (None, f) ])
     | _ -> invalid_arg "incorrectly applied not_elim"
 
-let raa =
-  update_tree @@ fun _assumps f ->
-  `Rule ("RAA", [ (Some (Formula.Not f), Formula.False) ])
-
-let by_assumption =
+let raa goal =
+  update_tree (fun _assumps f ->
+      `Rule ("RAA", [ (Some (Formula.Not f), Formula.False) ]))
+    goal
+let by_assumption goal =
   update_tree (fun assumps f ->
       if List.mem f assumps then `Rule ("assumption", [])
       else invalid_arg "assumption not applicable")
+    goal
 
-let makeopen =
+let makeopen goal =
   update_tree (fun _assumps _f -> `Open)
+    goal
 
 let set_partial p =
   update_tree (fun _assumps _f -> `Partial p)

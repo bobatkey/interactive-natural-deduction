@@ -1,52 +1,45 @@
-type partial =
-  | Partial_Implies_elim of string
-  | Partial_Conj_elim1   of string
-  | Partial_Conj_elim2   of string
-  | Partial_Disj_elim    of string * string
-  | Partial_Not_elim     of string
-
-type prooftree = private
+type 'hole prooftree = private
   { formula : Formula.t
-  ; status  : status
+  ; status  : 'hole status
   }
 
-and status = private
+and 'hole status = private
   | Open
-  | Rule    of string * proofbox list
-  | Partial of partial
+  | Partial of 'hole
+  | Rule    of string * 'hole proofbox list
 
-and proofbox = private
-  { subtree    : prooftree
+and 'hole proofbox = private
+  { subtree    : 'hole prooftree
   ; assumption : Formula.t option
   }
 
 (**********************************************************************)
-val initial : Formula.t -> prooftree
+val initial : Formula.t -> 'hole prooftree
 
 (**********************************************************************)
 type goal = int list
 
-type rule = goal -> prooftree -> prooftree
+type 'hole rule = goal -> 'hole prooftree -> 'hole prooftree
 
-val by_assumption : rule
-val makeopen : rule
+val by_assumption : 'hole rule
+val makeopen : 'hole rule
 
-val implies_intro : rule
-val implies_elim : Formula.t -> rule
+val implies_intro : 'hole rule
+val implies_elim : Formula.t -> 'hole rule
 
-val conj_intro: rule
-val conj_elim1 : Formula.t -> rule
-val conj_elim2 : Formula.t -> rule
+val conj_intro: 'hole rule
+val conj_elim1 : Formula.t -> 'hole rule
+val conj_elim2 : Formula.t -> 'hole rule
 
-val disj_intro1 : rule
-val disj_intro2 : rule
-val disj_elim : Formula.t -> Formula.t -> rule
+val disj_intro1 : 'hole rule
+val disj_intro2 : 'hole rule
+val disj_elim : Formula.t -> Formula.t -> 'hole rule
 
-val false_elim : rule
+val false_elim : 'hole rule
 
-val not_intro : rule
-val not_elim : Formula.t -> rule
+val not_intro : 'hole rule
+val not_elim : Formula.t -> 'hole rule
 
-val raa : rule
+val raa : 'hole rule
 
-val set_partial : partial -> rule
+val set_partial : 'hole -> 'hole rule

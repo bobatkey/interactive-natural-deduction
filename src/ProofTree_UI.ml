@@ -1,7 +1,17 @@
 open Dynamic_HTML
 open ProofTree
 
-type state = prooftree
+type partial =
+  | Partial_Implies_elim of string
+  | Partial_Conj_elim1   of string
+  | Partial_Conj_elim2   of string
+  | Partial_Disj_elim    of string * string
+  | Partial_Not_elim     of string
+
+type state = partial prooftree
+
+let initial f =
+  initial f
 
 type rulename =
   | Assumption
