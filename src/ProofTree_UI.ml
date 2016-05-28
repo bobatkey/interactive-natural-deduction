@@ -83,6 +83,11 @@ let rule_selector assumps path formula =
             ~action:(Update (path, Partial_Not_elim ""))
             (text "¬-E")
         ]
+    ; group ~label:"True (⊤)"
+        [ option ~enabled:(Formula.is_truth formula)
+            ~action:(ApplyRule (path, C.True_intro))
+            (text "⊤-I")
+        ]
     ; group ~label:"False (⊥)"
         [ option
             ~action:(ApplyRule (path, C.False_elim))

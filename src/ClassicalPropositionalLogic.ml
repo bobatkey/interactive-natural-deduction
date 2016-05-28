@@ -14,6 +14,7 @@ type rule =
   | Disj_intro1
   | Disj_intro2
   | Disj_elim of Formula.t * Formula.t
+  | True_intro
   | False_elim
   | Not_intro
   | Not_elim of Formula.t
@@ -29,6 +30,7 @@ let name_of_rule = function
   | Disj_intro1    -> "∨-I1"
   | Disj_intro2    -> "∨-I2"
   | Disj_elim _    -> "∨-E"
+  | True_intro     -> "⊤-I"
   | False_elim     -> "⊥-E"
   | Not_intro      -> "¬-I"
   | Not_elim _     -> "¬-E"
@@ -95,6 +97,13 @@ let apply rule assumptions formula = match rule with
         ; (Some f1, formula)
         ; (Some f2, formula)
         ]
+
+  | True_intro ->
+     begin
+       match formula with
+         | Formula.True -> Ok [ ]
+         | _            -> Error (`Msg "true_intro: formula is not 'True'")
+     end
 
   | False_elim ->
      Ok [ (None, Formula.False) ]

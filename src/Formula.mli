@@ -4,6 +4,7 @@ type t =
   | And     of t * t
   | Or      of t * t
   | Not     of t
+  | True
   | False
 
 val (@->) : t -> t -> t
@@ -16,3 +17,4 @@ val is_implication : t -> bool
 val is_conjunction : t -> bool
 val is_disjunction : t -> bool
 val is_negation    : t -> bool
+val is_truth       : t -> bool

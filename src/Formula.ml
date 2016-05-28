@@ -4,6 +4,7 @@ type t = Formula_ast.t =
   | And     of t * t
   | Or      of t * t
   | Not     of t
+  | True
   | False
 
 let (@->) f1 f2 = Implies (f1, f2)
@@ -19,6 +20,7 @@ let rec to_string ?(unicode=true) f =
   let arrow = if unicode then " → " else " -> " in
   let conj  = if unicode then " ∧ " else " /\\ " in
   let disj  = if unicode then " ∨ " else " \\/ " in
+  let true_  = if unicode then "⊤" else "True" in
   let false_ = if unicode then "⊥" else "False" in
   let text x l = x in
   let (^^) x y l = x l ^ y l in
@@ -48,6 +50,8 @@ let rec to_string ?(unicode=true) f =
          text "¬";
          parens 0 (to_string f)
        end
+    | True ->
+       text true_
     | False ->
        text false_
   in
@@ -65,4 +69,4 @@ let is_implication = function Implies _ -> true | _ -> false
 let is_conjunction = function And _ -> true | _ -> false
 let is_disjunction = function Or _ -> true | _ -> false
 let is_negation    = function Not _ -> true | _ -> false
-
+let is_truth       = function True -> true | _ -> false

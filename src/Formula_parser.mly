@@ -9,6 +9,7 @@ open Formula_ast
 %token CONJ
 %token DISJ
 %token FALSE
+%token TRUE
 %token NOT
 %token LPAREN
 %token RPAREN
@@ -33,4 +34,5 @@ formula:
   | f1=formula; DISJ; f2=formula  { Or (f1, f2) }
   | NOT; f=formula                { Not f }
   | LPAREN; f=formula; RPAREN     { f }
+  | TRUE                          { True }
   | FALSE                         { False }

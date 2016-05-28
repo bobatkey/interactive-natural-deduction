@@ -13,7 +13,8 @@ rule token = parse
 | "!" | "~" | "¬" { NOT }
 | "("     { LPAREN }
 | ")"     { RPAREN }
-| "False" { FALSE }
+| "False" | "⊥" { FALSE }
+| "True"  | "⊤" { TRUE }
 | ident   { IDENT (Lexing.lexeme lexbuf) }
 | eof     { EOF }
 | _       { raise Error }
