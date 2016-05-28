@@ -1,8 +1,9 @@
+MOD Dynamic_HTML
+MOD Component
 MOD Formula_ast
 MOD Formula_parser
 MOD Formula_lexer
 MOD Formula
-MOD Dynamic_HTML
 MOD ProofTree
-MOD Component
+MOD ProofTree_UI
 MOD Main

@@ -7,7 +7,7 @@ let f1 = Formula.(Or (a, b) @-> (a @-> c) @-> (b @-> d) @-> Or (c,d))
 let f2 = Formula.(Or (a @-> b, a @-> c) @-> a @-> Or (b,c))
 
 module App = struct
-  module PTU = ProofTree.UI
+  module PTU = ProofTree_UI
 
   type state =
     | Proving     of ProofTree.prooftree list * ProofTree.prooftree

@@ -1,8 +1,30 @@
-type prooftree
+type partial =
+  | Partial_Implies_elim of string
+  | Partial_Conj_elim1   of string
+  | Partial_Conj_elim2   of string
+  | Partial_Disj_elim    of string * string
+  | Partial_Not_elim     of string
 
+type prooftree = private
+  { formula : Formula.t
+  ; status  : status
+  }
+
+and status = private
+  | Open
+  | Rule    of string * proofbox list
+  | Partial of partial
+
+and proofbox = private
+  { subtree    : prooftree
+  ; assumption : Formula.t option
+  }
+
+(**********************************************************************)
 val initial : Formula.t -> prooftree
 
-type goal
+(**********************************************************************)
+type goal = int list
 
 type rule = goal -> prooftree -> prooftree
 
@@ -20,11 +42,11 @@ val disj_intro1 : rule
 val disj_intro2 : rule
 val disj_elim : Formula.t -> Formula.t -> rule
 
-(**********************************************************************)
+val false_elim : rule
 
-module UI : sig
-  type state = prooftree
-  type action
-  val render : state -> action Dynamic_HTML.html
-  val update : action -> state -> state
-end
+val not_intro : rule
+val not_elim : Formula.t -> rule
+
+val raa : rule
+
+val set_partial : partial -> rule
