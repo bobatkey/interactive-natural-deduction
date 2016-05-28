@@ -32,6 +32,11 @@ let formulabox path formula =
              ; A.title "Click to reset proof to this formula"]
     (text (Formula.to_string formula))
 
+let formulabox' formula =
+  div ~attrs:[A.class_ "formulabox"] begin
+    text (Formula.to_string formula)
+  end
+
 let rule_selector assumps path formula =
   let open DropDown in
   DropDown.make
@@ -231,11 +236,7 @@ let render_partial point = function
              text (if param1 = "" then "<formula>" else param1);
              text " ..."
            end;
-           proofbox begin
-             div ~attrs:[A.class_ "formulabox"] begin
-               text (Formula.to_string formula)
-             end
-           end
+           proofbox (formulabox' formula)
          end;
          div ~attrs:[A.class_ "assumptionbox"] begin%concat
            div ~attrs:[A.class_ "assumption"] begin%concat
@@ -243,11 +244,7 @@ let render_partial point = function
              text (if param2 = "" then "<formula>" else param2);
              text " ..."
            end;
-           proofbox begin
-             div ~attrs:[A.class_ "formulabox"] begin
-               text (Formula.to_string formula)
-             end
-           end
+           proofbox (formulabox' formula)
          end;
          (match f1, f2 with
            | None, _ | _, None ->
