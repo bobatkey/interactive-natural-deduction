@@ -6,8 +6,8 @@ module E : sig
   val onkeypress    : (int -> int -> 'action option) -> 'action attribute
   val onclick       : 'action -> 'action attribute
   val ondoubleclick : 'action -> 'action attribute
-  val oninput       : (value:string -> 'action) -> 'action attribute
-  val onchange      : (value:string -> 'action) -> 'action attribute
+  val oninput       : (string -> 'action) -> 'action attribute
+  val onchange      : (string -> 'action) -> 'action attribute
 end
 
 type realised_tree

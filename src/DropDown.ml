@@ -9,7 +9,7 @@ and 'action options =
 
 let make ?(attrs=[]) options =
   let mapping = Hashtbl.create 64 in
-  let handler ~value = Hashtbl.find mapping value in
+  let handler value = Hashtbl.find mapping value in
   let rec render_options i accum = function
     | [] ->
        i, accum

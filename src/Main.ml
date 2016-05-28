@@ -51,7 +51,7 @@ module App = struct
            div begin%concat
              input ~attrs:[ A.value string
                           ; A.class_ "initialformulaentry"
-                          ; E.oninput (fun ~value -> ChangeFormula value) ];
+                          ; E.oninput (fun value -> ChangeFormula value) ];
              (match Formula.of_string string with
                | None ->
                   button ~attrs:[ A.disabled true ] (text "Start Proving...")

@@ -127,7 +127,7 @@ let render_partial point = function
              input ~attrs:[ A.class_ "formulainput"
                           ; A.value parameter
                           ; A.placeholder "<formula>"
-                          ; E.oninput (fun ~value -> Update (point, Partial_Implies_elim value))
+                          ; E.oninput (fun value -> Update (point, Partial_Implies_elim value))
                           ];
              text " → ";
              text (Formula.to_string formula);
@@ -138,7 +138,7 @@ let render_partial point = function
              input ~attrs:[ A.class_ "formulainput"
                           ; A.value parameter
                           ; A.placeholder "<formula>"
-                          ; E.oninput (fun ~value -> Update (point, Partial_Implies_elim value))
+                          ; E.oninput (fun value -> Update (point, Partial_Implies_elim value))
                           ];
            end;
          end;
@@ -162,7 +162,7 @@ let render_partial point = function
              input ~attrs:[ A.class_ "formulainput"
                           ; A.value parameter
                           ; A.placeholder "<formula>"
-                          ; E.oninput (fun ~value -> Update (point, Partial_Conj_elim1 value))
+                          ; E.oninput (fun value -> Update (point, Partial_Conj_elim1 value))
                           ];
            end;
          end;
@@ -184,7 +184,7 @@ let render_partial point = function
              input ~attrs:[ A.class_ "formulainput"
                           ; A.value parameter
                           ; A.placeholder "<formula>"
-                          ; E.oninput (fun ~value -> Update (point, Partial_Conj_elim2 value))
+                          ; E.oninput (fun value -> Update (point, Partial_Conj_elim2 value))
                           ];
              text " ∧ ";
              text (Formula.to_string formula);
@@ -210,13 +210,13 @@ let render_partial point = function
              input ~attrs:[ A.class_ "formulainput"
                           ; A.value param1
                           ; A.placeholder "<formula>"
-                          ; E.oninput (fun ~value -> Update (point, Partial_Disj_elim (value, param2)))
+                          ; E.oninput (fun value -> Update (point, Partial_Disj_elim (value, param2)))
                           ];
              text " ∨ ";
              input ~attrs:[ A.class_ "formulainput"
                           ; A.value param2
                           ; A.placeholder "<formula>"
-                          ; E.oninput (fun ~value -> Update (point, Partial_Disj_elim (param1, value)))
+                          ; E.oninput (fun value -> Update (point, Partial_Disj_elim (param1, value)))
                           ]
            end
          end;
@@ -263,7 +263,7 @@ let render_partial point = function
              input ~attrs:[ A.class_ "formulainput"
                           ; A.value parameter
                           ; A.placeholder "<formula>"
-                          ; E.oninput (fun ~value -> Update (point, Partial_Not_elim value))
+                          ; E.oninput (fun value -> Update (point, Partial_Not_elim value))
                           ]
            end;
          end;
@@ -272,7 +272,7 @@ let render_partial point = function
              input ~attrs:[ A.class_ "formulainput"
                           ; A.value parameter
                           ; A.placeholder "<formula>"
-                          ; E.oninput (fun ~value -> Update (point, Partial_Not_elim value))
+                          ; E.oninput (fun value -> Update (point, Partial_Not_elim value))
                           ];
            end;
          end;

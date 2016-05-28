@@ -376,7 +376,7 @@ module E = struct
              ((Js.Unsafe.coerce node)##.value)
              (fun _ -> Js.string "")
          in
-         Some (f ~value:(Js.to_string s)))
+         Some (f (Js.to_string s)))
 
   let onchange f =
     A_Event
@@ -387,7 +387,7 @@ module E = struct
              ((Js.Unsafe.coerce node)##.value)
              (fun _ -> Js.string "")
          in
-         Some (f ~value:(Js.to_string s)))
+         Some (f (Js.to_string s)))
 end
 
 type tree =
