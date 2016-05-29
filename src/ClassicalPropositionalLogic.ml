@@ -118,8 +118,8 @@ let apply rule assumptions formula = match rule with
      end
 
   | Not_elim f ->
-     Ok [ (None, f)
-        ; (None, Formula.Not f)
+     Ok [ (None, Formula.Not f)
+        ; (None, f)
         ]
 
   | RAA ->
