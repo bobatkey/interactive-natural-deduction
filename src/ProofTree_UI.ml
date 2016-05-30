@@ -20,23 +20,6 @@ type action =
   | ResetTo   of point
   | DoNothing
 
-let proofbox elements =
-  div ~attrs:[A.class_ "proofbox"] elements
-
-let premisebox elements =
-  div ~attrs:[A.class_ "premisebox"] elements
-
-let formulabox path formula =
-  div ~attrs:[ A.class_ "formulabox"
-             ; E.onclick (ResetTo path)
-             ; A.title "Click to reset proof to this formula"]
-    (text (Formula.to_string formula))
-
-let formulabox' formula =
-  div ~attrs:[A.class_ "formulabox"] begin
-    text (Formula.to_string formula)
-  end
-
 let rule_selector assumps path formula =
   let open DropDown in
   DropDown.make
@@ -105,6 +88,23 @@ let rule_selector assumps path formula =
         ]
     ]
 
+let proofbox elements =
+  div ~attrs:[A.class_ "proofbox"] elements
+
+let premisebox elements =
+  div ~attrs:[A.class_ "premisebox"] elements
+
+let formulabox point formula =
+  div ~attrs:[ A.class_ "formulabox"
+             ; E.onclick (ResetTo point)
+             ; A.title "Click to reset proof to this formula"]
+    (text (Formula.to_string formula))
+
+let formulabox_inactive content =
+  div ~attrs:[A.class_ "formulabox"] begin
+    content
+  end
+
 let disabled_rule_button label =
   button ~attrs:[A.disabled true]
     (text ("apply " ^ label))
@@ -112,6 +112,24 @@ let disabled_rule_button label =
 let enabled_rule_button label path rule =
   button ~attrs:[E.onclick (ApplyRule (path, rule))]
     (text ("apply " ^ label))
+
+let assumption_box ~assumption content =
+  div ~attrs:[A.class_ "assumptionbox"] begin%concat
+    div ~attrs:[A.class_ "assumption"] begin%concat
+      text "with ";
+      text assumption;
+      text " ..."
+    end;
+    content
+  end
+
+let formula_input parameter point f =
+  input ~attrs:[ A.class_ "formulainput"
+               ; A.value parameter
+               ; A.placeholder "<formula>"
+               ; E.oninput (fun value -> Update (point, f value))
+               ]
+
 
 let render_partial point = function
   | None ->
@@ -133,30 +151,22 @@ let render_partial point = function
      proofbox begin%concat
        premisebox begin%concat
          proofbox begin
-           div ~attrs:[A.class_ "formulabox"] begin%concat
-             input ~attrs:[ A.class_ "formulainput"
-                          ; A.value parameter
-                          ; A.placeholder "<formula>"
-                          ; E.oninput (fun value -> Update (point, Partial_Implies_elim value))
-                          ];
+           formulabox_inactive begin%concat
+             formula_input parameter point (fun v -> Partial_Implies_elim v);
              text " → ";
              text (Formula.to_string formula);
            end;
          end;
          proofbox begin
-           div ~attrs:[A.class_ "formulabox"] begin%concat
-             input ~attrs:[ A.class_ "formulainput"
-                          ; A.value parameter
-                          ; A.placeholder "<formula>"
-                          ; E.oninput (fun value -> Update (point, Partial_Implies_elim value))
-                          ];
+           formulabox_inactive begin%concat
+             formula_input parameter point (fun v -> Partial_Implies_elim v)
            end;
          end;
-         (match Formula.of_string parameter with
+         match Formula.of_string parameter with
            | None ->
               disabled_rule_button "→-E"
            | Some f ->
-              enabled_rule_button "→-E" point (C.Implies_elim f))
+              enabled_rule_button "→-E" point (C.Implies_elim f)
        end;
        formulabox point formula
      end
@@ -166,21 +176,17 @@ let render_partial point = function
      proofbox begin%concat
        premisebox begin%concat
          proofbox begin
-           div ~attrs:[A.class_ "formulabox"] begin%concat
+           formulabox_inactive begin%concat
              text (Formula.to_string formula);
              text " ∧ ";
-             input ~attrs:[ A.class_ "formulainput"
-                          ; A.value parameter
-                          ; A.placeholder "<formula>"
-                          ; E.oninput (fun value -> Update (point, Partial_Conj_elim1 value))
-                          ];
+             formula_input parameter point (fun v -> Partial_Conj_elim1 v)
            end;
          end;
-         (match Formula.of_string parameter with
+         match Formula.of_string parameter with
            | None ->
               disabled_rule_button "∧-E1"
            | Some f ->
-              enabled_rule_button "∧-E1" point (C.Conj_elim1 f))
+              enabled_rule_button "∧-E1" point (C.Conj_elim1 f)
        end;
        formulabox point formula
      end
@@ -190,12 +196,8 @@ let render_partial point = function
      proofbox begin%concat
        premisebox begin%concat
          proofbox begin
-           div ~attrs:[A.class_ "formulabox"] begin%concat
-             input ~attrs:[ A.class_ "formulainput"
-                          ; A.value parameter
-                          ; A.placeholder "<formula>"
-                          ; E.oninput (fun value -> Update (point, Partial_Conj_elim2 value))
-                          ];
+           formulabox_inactive begin%concat
+             formula_input parameter point (fun v -> Partial_Conj_elim2 v);
              text " ∧ ";
              text (Formula.to_string formula);
            end;
@@ -216,41 +218,23 @@ let render_partial point = function
      proofbox begin%concat
        premisebox begin%concat
          proofbox begin%concat
-           div ~attrs:[A.class_ "formulabox"] begin%concat
-             input ~attrs:[ A.class_ "formulainput"
-                          ; A.value param1
-                          ; A.placeholder "<formula>"
-                          ; E.oninput (fun value -> Update (point, Partial_Disj_elim (value, param2)))
-                          ];
+           formulabox_inactive begin%concat
+             formula_input param1 point (fun v -> Partial_Disj_elim (v, param2));
              text " ∨ ";
-             input ~attrs:[ A.class_ "formulainput"
-                          ; A.value param2
-                          ; A.placeholder "<formula>"
-                          ; E.oninput (fun value -> Update (point, Partial_Disj_elim (param1, value)))
-                          ]
+             formula_input param2 point (fun v -> Partial_Disj_elim (param1, v))
            end
          end;
-         div ~attrs:[A.class_ "assumptionbox"] begin%concat
-           div ~attrs:[A.class_ "assumption"] begin%concat
-             text "with ";
-             text (if param1 = "" then "<formula>" else param1);
-             text " ..."
-           end;
-           proofbox (formulabox' formula)
-         end;
-         div ~attrs:[A.class_ "assumptionbox"] begin%concat
-           div ~attrs:[A.class_ "assumption"] begin%concat
-             text "with ";
-             text (if param2 = "" then "<formula>" else param2);
-             text " ..."
-           end;
-           proofbox (formulabox' formula)
-         end;
-         (match f1, f2 with
+         assumption_box
+           ~assumption:(if param1 = "" then "<formula>" else param1)
+           (proofbox (formulabox_inactive (text (Formula.to_string formula))));
+         assumption_box
+           ~assumption:(if param2 = "" then "<formula>" else param2)
+           (proofbox (formulabox_inactive (text (Formula.to_string formula))));
+         match f1, f2 with
            | None, _ | _, None ->
               disabled_rule_button "∨-E"
            | Some f1, Some f2  ->
-              enabled_rule_button "∨-E" point (C.Disj_elim (f1, f2)))
+              enabled_rule_button "∨-E" point (C.Disj_elim (f1, f2))
        end;
        formulabox point formula
      end
@@ -260,29 +244,21 @@ let render_partial point = function
      proofbox begin%concat
        premisebox begin%concat
          proofbox begin
-           div ~attrs:[A.class_ "formulabox"] begin%concat
+           formulabox_inactive begin%concat
              text "¬ ";
-             input ~attrs:[ A.class_ "formulainput"
-                          ; A.value parameter
-                          ; A.placeholder "<formula>"
-                          ; E.oninput (fun value -> Update (point, Partial_Not_elim value))
-                          ]
+             formula_input parameter point (fun v -> Partial_Not_elim v)
            end;
          end;
          proofbox begin
-           div ~attrs:[A.class_ "formulabox"] begin%concat
-             input ~attrs:[ A.class_ "formulainput"
-                          ; A.value parameter
-                          ; A.placeholder "<formula>"
-                          ; E.oninput (fun value -> Update (point, Partial_Not_elim value))
-                          ];
+           formulabox_inactive begin%concat
+             formula_input parameter point (fun v -> Partial_Not_elim v)
            end;
          end;
-         (match Formula.of_string parameter with
+         match Formula.of_string parameter with
            | None ->
               disabled_rule_button "¬-E"
            | Some f ->
-              enabled_rule_button "¬-E" point (C.Not_elim f))
+              enabled_rule_button "¬-E" point (C.Not_elim f)
        end;
        formulabox point formula
      end
@@ -299,14 +275,9 @@ let render_rule_application point name rendered_premises =
 let render_box assumption rendered_subtree =
   match assumption with
     | Some assumption ->
-       div ~attrs:[A.class_ "assumptionbox"] begin%concat
-         div ~attrs:[A.class_ "assumption"] begin%concat
-           text "with ";
-           text (Formula.to_string assumption);
-           text " ..."
-         end;
+       assumption_box
+         ~assumption:(Formula.to_string assumption)
          rendered_subtree
-       end
     | None ->
        rendered_subtree
 
