@@ -9,6 +9,8 @@ module type CALCULUS = sig
 
   val apply : rule -> assumption list -> formula ->
     ((assumption option * formula) list, R.msg) result
+
+  val name_of_rule : rule -> string
 end
 
 module Make (C : CALCULUS) = struct

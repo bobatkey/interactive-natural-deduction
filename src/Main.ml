@@ -7,7 +7,10 @@ let f1 = Formula.(Or (a, b) @-> (a @-> c) @-> (b @-> d) @-> Or (c,d))
 let f2 = Formula.(Or (a @-> b, a @-> c) @-> a @-> Or (b,c))
 
 module App = struct
-  module PTU = ProofTree_UI
+  module PTU =
+    ProofTree_UI.Make
+      (ClassicalPropositionalLogic.System)
+      (ClassicalPropositionalLogic.Partials)
 
   type state =
     | Proving     of PTU.state list * PTU.state
