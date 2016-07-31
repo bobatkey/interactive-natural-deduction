@@ -1,6 +1,27 @@
 open Result
 
-module System = struct
+module System : sig
+  type rule = 
+    | Assumption
+    | Implies_intro
+    | Implies_elim of Formula.t
+    | Conj_intro
+    | Conj_elim1 of Formula.t
+    | Conj_elim2 of Formula.t
+    | Disj_intro1
+    | Disj_intro2
+    | Disj_elim of Formula.t * Formula.t
+    | True_intro
+    | False_elim
+    | Not_intro
+    | Not_elim of Formula.t
+    | RAA
+
+  include ProofTree.CALCULUS
+    with type formula    = Formula.t
+     and type assumption = Formula.t
+     and type rule       :=  rule
+end = struct
   type formula = Formula.t
 
   type assumption = Formula.t
@@ -127,7 +148,9 @@ module System = struct
        Ok [ (Some (Formula.Not formula), Formula.False) ]
 end
 
-module Partials = struct
+module Partials
+  : ProofTree_UI.PARTIALS with module C = System
+= struct
   module C = System
 
   open C
