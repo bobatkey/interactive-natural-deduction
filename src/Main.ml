@@ -30,42 +30,42 @@ module App = struct
   let initial =
     StartScreen (Formula.to_string ~unicode:false f1)
 
-  let render =
-    let open Dynamic_HTML in
-    function
-      | Proving (history, prooftree) ->
-         div ~attrs:[A.style "display: flex; flex-direction: column; height: 100%; justify-content: space-between"] begin%concat
-           div ~attrs:[A.style "align-self: flex-start; width:100%"] begin
-             div ~attrs:[A.style "display: flex; justify-content: center; align-items: flex-start; width:100%"] begin%concat
-               div ~attrs:[A.style "flex: none"] begin%concat
-                 (match history with
-                   | [] -> button ~attrs:[A.disabled true] (text "Undo")
-                   | _  -> button ~attrs:[E.onclick Undo] (text "Undo"));
-                 button ~attrs:[E.onclick StartAgain] (text "Enter new formula")
-               end
+  let render = function
+    | Proving (history, prooftree) ->
+       let open Dynamic_HTML in
+       div ~attrs:[A.style "display: flex; flex-direction: column; height: 100%; justify-content: space-between"] begin%concat
+         div ~attrs:[A.style "align-self: flex-start; width:100%"] begin
+           div ~attrs:[A.style "display: flex; justify-content: center; align-items: flex-start; width:100%"] begin%concat
+             div ~attrs:[A.style "flex: none"] begin%concat
+               (match history with
+                 | [] -> button ~attrs:[A.disabled true] (text "Undo")
+                 | _  -> button ~attrs:[E.onclick Undo] (text "Undo"));
+               button ~attrs:[E.onclick StartAgain] (text "Enter new formula")
              end
-           end;
-           div ~attrs:[A.style "align-self: flex-end"] begin
-             map (fun a -> ProofAction a) (PTU.render prooftree)
            end
+         end;
+         div ~attrs:[A.style "align-self: flex-end"] begin
+           map (fun a -> ProofAction a) (PTU.render prooftree)
          end
-      | StartScreen string ->
-         div ~attrs:[A.style "align-self: flex-start"] begin%concat
-           div begin%concat
-             h1 (text "Interactive Natural Deduction Proof Editor");
-             p (text "Enter a formula and click the button to start building a proof.");
-           end;
-           div begin%concat
-             input ~attrs:[ A.value string
-                          ; A.class_ "initialformulaentry"
-                          ; E.oninput (fun value -> ChangeFormula value) ];
-             (match Formula.of_string string with
-               | None ->
-                  button ~attrs:[ A.disabled true ] (text "Start Proving...")
-               | Some f ->
-                  button ~attrs:[ E.onclick (StartProving f) ] (text "Start Proving..."))
-           end
+       end
+    | StartScreen string ->
+       let open Dynamic_HTML in
+       div ~attrs:[A.style "align-self: flex-start"] begin%concat
+         div begin%concat
+           h1 (text "Interactive Natural Deduction Proof Editor");
+           p (text "Enter a formula and click the button to start building a proof.");
+         end;
+         div begin%concat
+           input ~attrs:[ A.value string
+                        ; A.class_ "initialformulaentry"
+                        ; E.oninput (fun value -> ChangeFormula value) ];
+           (match Formula.of_string string with
+             | None ->
+                button ~attrs:[ A.disabled true ] (text "Start Proving...")
+             | Some f ->
+                button ~attrs:[ E.onclick (StartProving f) ] (text "Start Proving..."))
          end
+       end
 
   let update action state = match state, action with
     | StartScreen _,     ChangeFormula s -> StartScreen s
