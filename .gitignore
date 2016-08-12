@@ -1,3 +1,4 @@
 src/_build
+lib_mvc/_build
 *~
 natural-deduction.js

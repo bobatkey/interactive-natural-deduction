@@ -1,6 +1,4 @@
-MOD Dynamic_HTML
-MOD DropDown
-MOD Component
+LIB mvc
 MOD Formula_ast
 MOD Formula_parser
 MOD Formula_lexer

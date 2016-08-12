@@ -5,6 +5,9 @@
 SRCDIR := src
 include build-support/OCamlSrcs.makefile
 
+SRCDIR := lib_mvc
+include build-support/OCamlSrcs.makefile
+
 ######################################################################
 .PHONY: all test clean
 
