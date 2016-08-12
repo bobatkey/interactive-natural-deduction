@@ -9,6 +9,10 @@ let f2 = Formula.(Or (a @-> b, a @-> c) @-> a @-> Or (b,c))
 module App = struct
   module PTU =
     ProofTree_UI.Make
+      (struct
+        type t = Formula.t
+        let to_string x = Formula.to_string x
+      end)
       (ClassicalPropositionalLogic.System)
       (ClassicalPropositionalLogic.Partials)
 

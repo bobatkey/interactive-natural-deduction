@@ -40,9 +40,16 @@ module type PARTIALS = sig
   val present_partial : C.formula -> partial -> partial_presentation
 end
 
+module type FORMULA = sig
+  type t
+
+  val to_string : t -> string
+end
+
 module Make
-    (C : ProofTree.CALCULUS with type formula    = Formula.t
-                             and type assumption = Formula.t)
+    (F : FORMULA)
+    (C : ProofTree.CALCULUS with type formula    = F.t
+                             and type assumption = F.t)
     (P : PARTIALS with module C = C) =
 struct
   module PT = ProofTree.Make (C)
@@ -92,7 +99,7 @@ struct
     div ~attrs:[ A.class_ "formulabox"
                ; E.onclick (ResetTo point)
                ; A.title "Click to reset proof to this formula"]
-      (text (Formula.to_string formula))
+      (text (F.to_string formula))
 
   let formulabox_inactive content =
     div ~attrs:[A.class_ "formulabox"] begin
@@ -129,7 +136,7 @@ struct
       parts |> concat_map begin function
         | P.T str     -> text str
         | P.I (v, h)  -> formula_input v point h
-        | P.F formula -> text (Formula.to_string formula)
+        | P.F formula -> text (F.to_string formula)
       end
     end
 
@@ -177,7 +184,7 @@ struct
     match assumption with
       | Some assumption ->
          assumption_box
-           ~assumption:(Formula.to_string assumption)
+           ~assumption:(F.to_string assumption)
            rendered_subtree
       | None ->
          rendered_subtree

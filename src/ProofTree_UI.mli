@@ -18,7 +18,6 @@ module type PARTIALS = sig
 
   val rule_selection : C.assumption list -> C.formula -> selector_group list
 
-  
   type partial_formula_part =
     | T of string
     | I of string * (string -> partial)
@@ -37,9 +36,16 @@ module type PARTIALS = sig
   val present_partial : C.formula -> partial -> partial_presentation
 end
 
+module type FORMULA = sig
+  type t
+
+  val to_string : t -> string
+end
+
 module Make
-    (C : ProofTree.CALCULUS with type formula    = Formula.t
-                             and type assumption = Formula.t)
+    (F : FORMULA)
+    (C : ProofTree.CALCULUS with type formula    = F.t
+                             and type assumption = F.t)
     (P : PARTIALS with module C = C) :
 sig
   type state
@@ -50,5 +56,5 @@ sig
 
   val update : action -> state -> state
 
-  val initial : Formula.t -> state
+  val initial : F.t -> state
 end
