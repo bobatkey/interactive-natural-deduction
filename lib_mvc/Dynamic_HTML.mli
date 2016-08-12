@@ -2,6 +2,8 @@
 
 include Html.S
 
+val vg_image : Gg.size2 -> Gg.box2 -> Vg.image -> _ t
+
 module E : sig
   val onkeypress    : (int -> int -> 'action option) -> 'action attribute
   val onclick       : 'action -> 'action attribute

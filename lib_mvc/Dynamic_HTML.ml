@@ -21,6 +21,7 @@ type 'action node =
   | Map : ('inner_action -> 'action) * 'inner_action node   -> 'action node
   | El   : string * attributes * 'action events * 'action t -> 'action node
   | Text : string                                           -> 'action node
+  | Vg   : Gg.size2 * Gg.box2 * Vg.image                    -> 'action node
 and 'action t =
   'action node list
 (*
@@ -236,6 +237,9 @@ let noscript ?attrs = normal_element "noscript" ?attrs
 let template ?attrs = normal_element "template" ?attrs
 let canvas ?attrs = normal_element "canvas" ?attrs
 
+let vg_image size view image =
+  [Vg (size, view, image)]
+
 (* Attributes *)
 module A = struct
   (* Global attributes (3.2.5) *)
@@ -342,7 +346,7 @@ module A = struct
     if value then A_Simple ("disabled", "yes") else A_Nothing
 end
 
-  (* Events *)
+(* Events *)
 module E = struct
   let onkeypress f =
     A_Event
@@ -399,6 +403,7 @@ type tree =
       * tree list
     -> tree
   | Text_existing : Dom.text Js.t * string -> tree
+  | Canvas_existing : Dom_html.canvasElement Js.t -> tree
   | Dummy         : tree -> tree
 and realised_tree =
   tree list
@@ -406,6 +411,7 @@ and realised_tree =
 let rec node_of_tree = function
   | El_existing (node, _, _, _, _) -> (node :> Dom.node Js.t)
   | Text_existing (node, _)        -> (node :> Dom.node Js.t)
+  | Canvas_existing node           -> (node :> Dom.node Js.t)
   | Dummy tree                     -> node_of_tree tree
 
 let add_handler h node = function
@@ -438,6 +444,15 @@ let rec create_node : 'a. ('a -> bool Js.t) -> Dom_html.element Js.t option -> '
        (match parent with
          | None -> () | Some parent -> Dom.appendChild parent node);
        Text_existing (node, text)
+
+    | Vg (size, view, image) ->
+       let node = Dom_html.createCanvas Dom_html.document in
+       (match parent with
+         | None -> () | Some parent -> Dom.appendChild parent node);
+       let r = Vg.Vgr.create (Vgr_htmlc.target node) `Other in
+       ignore (Vg.Vgr.render r (`Image (size, view, image)));
+       ignore (Vg.Vgr.render r `End);
+       Canvas_existing node
 
 and create : 'a. handler:('a -> bool Js.t) -> parent:Dom_html.element Js.t option -> 'a t -> tree list =
   fun ~handler ~parent -> List.map (create_node handler parent)
@@ -496,6 +511,13 @@ let rec update_tree : 'a. ('a -> bool Js.t) -> Dom_html.element Js.t -> tree -> 
       | Text_existing (node, text1), Text text2 ->
          node##.data := !$text2;
          Text_existing (node, text2)
+
+      | Canvas_existing node, Vg (size, view, image) ->
+         (* FIXME: common code with above: factor out *)
+         let r = Vg.Vgr.create (Vgr_htmlc.target node) `Other in
+         ignore (Vg.Vgr.render r (`Image (size, view, image)));
+         ignore (Vg.Vgr.render r `End);
+         Canvas_existing node
 
       | existing_tree, new_tree ->
          let tree = create_node h None new_tree in
