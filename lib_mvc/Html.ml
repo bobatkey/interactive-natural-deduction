@@ -14,9 +14,9 @@ module type S = sig
       representation is specific to the implementation of this
       signature. The type parameter represents the type of annotations
       that the represented HTML has been decorated with. *)
-  type _ html
+  type +'a html
 
-  type 'a t = 'a html
+  type +'a t = 'a html
 
   (** Representations of HTML5 attributes. The actual representation
       is specific to the implementation of this signature. The type

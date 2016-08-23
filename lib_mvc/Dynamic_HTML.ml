@@ -10,14 +10,14 @@ end
 
 type attributes = string String.Map.t
 
-type 'action event =
+type +'action event =
   | Event : ('e #Dom.event Js.t as 'b) Dom.Event.typ
             * (Dom_html.element Js.t -> 'b -> 'action option)
     -> 'action event
 
-type 'action events = 'action event list
+type +'action events = 'action event list
 
-type 'action node =
+type +'action node =
   | Map : ('inner_action -> 'action) * 'inner_action node   -> 'action node
   | El   : string * attributes * 'action events * 'action t -> 'action node
   | Text : string                                           -> 'action node
