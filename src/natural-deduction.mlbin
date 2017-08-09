@@ -1,9 +1,0 @@
-LIB mvc
-MOD Formula_ast
-MOD Formula_parser
-MOD Formula_lexer
-MOD Formula
-MOD ClassicalPropositionalLogic
-MOD ProofTree
-MOD ProofTree_UI
-MOD Main

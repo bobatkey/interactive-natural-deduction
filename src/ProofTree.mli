@@ -1,5 +1,3 @@
-open Rresult
-
 module type CALCULUS = sig
   type formula
 
@@ -8,7 +6,7 @@ module type CALCULUS = sig
   type rule
 
   val apply : rule -> assumption list -> formula ->
-    ((assumption option * formula) list, R.msg) result
+    ((assumption option * formula) list, [>`Msg of string]) result
 
   val name_of_rule : rule -> string
 end
@@ -31,7 +29,7 @@ module Make (C : CALCULUS) : sig
     'hole prooftree ->
     'a
 
-  val apply : C.rule -> 'a point -> ('a prooftree, R.msg) result
+  val apply : C.rule -> 'a point -> ('a prooftree, [>`Msg of string]) result
 
   val make_open : 'hole point -> 'hole prooftree
 

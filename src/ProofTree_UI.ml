@@ -1,5 +1,5 @@
 open Rresult
-open Dynamic_HTML
+open Lib_mvc.Dynamic_HTML
 
 module type PARTIALS = sig
   module C : ProofTree.CALCULUS
@@ -64,7 +64,7 @@ struct
     | DoNothing
 
   let rule_selector assumps point formula =
-    let open DropDown in
+    let open Lib_mvc.DropDown in
     let options =
       P.rule_selection assumps formula |> List.map
         (fun {P.group_name; P.rules} ->
@@ -81,7 +81,7 @@ struct
                      option ~action:(Update (point, partial))
                        (text (P.name_of_partial partial)))))
     in
-    DropDown.make
+    Lib_mvc.DropDown.make
       ~attrs:[ A.title "Select a rule to apply"
              ; A.class_ "ruleselector"
              ]

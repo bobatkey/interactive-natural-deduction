@@ -1,0 +1,11 @@
+(jbuild_version 1)
+
+(executable
+ ((name Main)
+  (libraries (lib_mvc rresult))
+  (preprocess (pps (ppx_monoid)))))
+
+(ocamllex (Formula_lexer))
+
+(menhir
+ ((modules (Formula_parser))))

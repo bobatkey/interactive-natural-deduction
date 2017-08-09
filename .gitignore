@@ -6,3 +6,5 @@ natural-deduction.js
 /build-support/mlbindep.cm*
 /build-support/of_merlin
 /build-support/of_merlin.cm*
+.merlin
+/_build

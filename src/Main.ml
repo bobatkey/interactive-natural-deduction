@@ -32,7 +32,7 @@ module App = struct
 
   let render = function
     | Proving (history, prooftree) ->
-       let open Dynamic_HTML in
+       let open Lib_mvc.Dynamic_HTML in
        div ~attrs:[A.style "display: flex; flex-direction: column; height: 100%; justify-content: space-between"] begin%concat
          div ~attrs:[A.style "align-self: flex-start; width:100%"] begin
            div ~attrs:[A.style "display: flex; justify-content: center; align-items: flex-start; width:100%"] begin%concat
@@ -49,7 +49,7 @@ module App = struct
          end
        end
     | StartScreen string ->
-       let open Dynamic_HTML in
+       let open Lib_mvc.Dynamic_HTML in
        div ~attrs:[A.style "align-self: flex-start"] begin%concat
          div begin%concat
            h1 (text "Interactive Natural Deduction Proof Editor");
@@ -78,4 +78,4 @@ module App = struct
 end
 
 let _ =
-  Component.attach ~parent_id:"main" (module App)
+  Lib_mvc.Component.attach ~parent_id:"main" (module App)

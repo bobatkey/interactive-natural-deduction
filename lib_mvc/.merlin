@@ -1,7 +1,0 @@
-PKG js_of_ocaml
-PKG js_of_ocaml.ppx
-PKG vg
-PKG vg.htmlc
-FLG -safe-string
-S .
-B _build

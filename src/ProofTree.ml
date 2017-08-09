@@ -1,5 +1,3 @@
-open Rresult
-
 module type CALCULUS = sig
   type formula
 
@@ -8,7 +6,7 @@ module type CALCULUS = sig
   type rule
 
   val apply : rule -> assumption list -> formula ->
-    ((assumption option * formula) list, R.msg) result
+    ((assumption option * formula) list, [>`Msg of string]) result
 
   val name_of_rule : rule -> string
 end

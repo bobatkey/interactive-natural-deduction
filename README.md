@@ -1,6 +1,6 @@
 # Interactive Natural Deduction
 
-Live version: [http://bentnib.org/docs/natural-deduction.html].
+Live version: <http://bentnib.org/docs/natural-deduction.html>.
 
 How to make it go (on Linux, or other Unix-a-like):
 
