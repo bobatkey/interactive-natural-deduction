@@ -1,3 +1,5 @@
+(** Interactive components *)
+
 module type S = sig
   type state
   type action
