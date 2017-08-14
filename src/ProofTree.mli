@@ -1,37 +1,76 @@
 module type CALCULUS = sig
   type formula
 
+  val equiv_formula : formula -> formula -> bool
+
   type assumption
 
   type rule
 
+  type error
+
   val apply : rule -> assumption list -> formula ->
-    ((assumption option * formula) list, [>`Msg of string]) result
+    ((assumption option * formula) list, error) result
 
   val name_of_rule : rule -> string
 end
 
-module Make (C : CALCULUS) : sig
-  type 'hole prooftree
+module type HOLE = sig
+  type t
 
-  type 'hole point
+  val empty : t
+end
 
-  val initial : C.formula -> 'hole prooftree
+module type PROOF_TREE = sig
+  module Calculus : CALCULUS
 
-  val formula : 'hole point -> C.formula
+  module Hole : HOLE
 
-  val assumptions : 'hole point -> C.assumption list
+  type prooftree
+
+  type point
+
+  (**{2 Creation of a proof tree} *)
+
+  val hole : ?content:Hole.t -> Calculus.formula -> prooftree
+
+  val build :
+    Calculus.formula ->
+    Calculus.rule ->
+    (Calculus.formula -> 'a ->
+     (prooftree * 'a,
+      [> `Application_error of Calculus.error | `Proof_mismatch] as 'b) result) ->
+    'a ->
+    (prooftree * 'a, 'b) result
+
+  (**{2 Traversal of a proof tree} *)
 
   val fold :
-    ('hole point -> 'hole option -> 'a) ->
-    ('hole point -> C.rule -> 'b list -> 'a) ->
-    (C.assumption option -> 'a -> 'b) ->
-    'hole prooftree ->
+    (point -> Hole.t -> 'a) ->
+    (point -> Calculus.rule -> 'b list -> 'a) ->
+    (Calculus.assumption option -> 'a -> 'b) ->
+    prooftree ->
     'a
 
-  val apply : C.rule -> 'a point -> ('a prooftree, [>`Msg of string]) result
+  val holes : prooftree -> (point * Hole.t) list
 
-  val make_open : 'hole point -> 'hole prooftree
+  (**{2 Inspection of points in a proof tree} *)
 
-  val set_partial : 'hole -> 'hole point -> 'hole prooftree
+  val root_formula : prooftree -> Calculus.formula
+
+  val formula : point -> Calculus.formula
+
+  val assumptions : point -> Calculus.assumption list
+
+  (**{2 Updating a point in a proof tree} *)
+
+  val apply : Calculus.rule -> point -> (prooftree, Calculus.error) result
+
+  val make_open : point -> prooftree
+
+  val set_hole : Hole.t -> point -> prooftree
 end
+
+module Make (Calculus : CALCULUS) (Hole : HOLE)
+  : PROOF_TREE with module Calculus = Calculus
+                and module Hole = Hole

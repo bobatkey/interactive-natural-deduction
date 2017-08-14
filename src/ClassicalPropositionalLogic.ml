@@ -1,7 +1,5 @@
-open Result
-
 module System : sig
-  type rule = 
+  type rule =
     | Assumption
     | Implies_intro
     | Implies_elim of Formula.t
@@ -23,6 +21,8 @@ module System : sig
      and type rule       :=  rule
 end = struct
   type formula = Formula.t
+
+  let equiv_formula = (=)
 
   type assumption = Formula.t
 
@@ -57,6 +57,9 @@ end = struct
     | Not_intro      -> "¬-I"
     | Not_elim _     -> "¬-E"
     | RAA            -> "RAA"
+
+  type error =
+    [ `Msg of string ]
 
   let apply rule assumptions formula = match rule with
     | Assumption ->
@@ -149,11 +152,11 @@ end = struct
 end
 
 module Partials
-  : ProofTree_UI.PARTIALS with module C = System
+  : ProofTree_UI.PARTIALS with module Calculus = System
 = struct
-  module C = System
+  module Calculus = System
 
-  open C
+  open Calculus
 
   type partial =
     | Partial_Implies_elim of string
@@ -171,7 +174,7 @@ module Partials
 
   (* Rule selection *)
   type rule_selector =
-    | Immediate of C.rule
+    | Immediate of rule
     | Disabled  of string
     | Partial   of partial
 

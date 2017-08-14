@@ -2,7 +2,7 @@ open Rresult
 open Lib_mvc.Dynamic_HTML
 
 module type PARTIALS = sig
-  module C : ProofTree.CALCULUS
+  module Calculus : ProofTree.CALCULUS
 
   type partial
 
@@ -10,7 +10,7 @@ module type PARTIALS = sig
 
   (* Rule selection *)
   type rule_selector =
-    | Immediate of C.rule
+    | Immediate of Calculus.rule
     | Disabled  of string
     | Partial   of partial
 
@@ -19,13 +19,14 @@ module type PARTIALS = sig
     ; rules      : rule_selector list
     }
 
-  val rule_selection : C.assumption list -> C.formula -> selector_group list
+  val rule_selection :
+    Calculus.assumption list -> Calculus.formula -> selector_group list
 
   (* Partial proof presentation *)
   type partial_formula_part =
     | T of string
     | I of string * (string -> partial)
-    | F of C.formula
+    | F of Calculus.formula
 
   type partial_premise =
     { premise_formula    : partial_formula_part list
@@ -34,10 +35,10 @@ module type PARTIALS = sig
 
   type partial_presentation =
     { premises : partial_premise list
-    ; apply    : C.rule option
+    ; apply    : Calculus.rule option
     }
 
-  val present_partial : C.formula -> partial -> partial_presentation
+  val present_partial : Calculus.formula -> partial -> partial_presentation
 end
 
 module type FORMULA = sig
@@ -47,20 +48,27 @@ module type FORMULA = sig
 end
 
 module Make
-    (F : FORMULA)
-    (C : ProofTree.CALCULUS with type formula    = F.t
-                             and type assumption = F.t)
-    (P : PARTIALS with module C = C) =
+    (Formula  : FORMULA)
+    (Calculus : ProofTree.CALCULUS
+     with type formula    = Formula.t
+      and type assumption = Formula.t)
+    (P : PARTIALS
+     with module Calculus = Calculus) =
 struct
-  module PT = ProofTree.Make (C)
+  module Hole = struct
+    type t = P.partial option
 
-  type state = P.partial PT.prooftree
-  type point = P.partial PT.point
+    let empty = None
+  end
+
+  module PT = ProofTree.Make (Calculus) (Hole)
+
+  type state = PT.prooftree
 
   type action =
-    | ApplyRule of point * C.rule
-    | Update    of point * P.partial
-    | ResetTo   of point
+    | ApplyRule of PT.point * Calculus.rule
+    | Update    of PT.point * P.partial
+    | ResetTo   of PT.point
     | DoNothing
 
   let rule_selector assumps point formula =
@@ -73,7 +81,7 @@ struct
                 (function
                   | P.Immediate rule ->
                      option ~action:(ApplyRule (point, rule))
-                       (text (C.name_of_rule rule))
+                       (text (Calculus.name_of_rule rule))
                   | P.Disabled name ->
                      option ~enabled:false ~action:DoNothing
                        (text name)
@@ -99,7 +107,7 @@ struct
     div ~attrs:[ A.class_ "formulabox"
                ; E.onclick (ResetTo point)
                ; A.title "Click to reset proof to this formula"]
-      (text (F.to_string formula))
+      (text (Formula.to_string formula))
 
   let formulabox_inactive content =
     div ~attrs:[A.class_ "formulabox"] begin
@@ -136,7 +144,7 @@ struct
       parts |> concat_map begin function
         | P.T str     -> text str
         | P.I (v, h)  -> formula_input v point h
-        | P.F formula -> text (F.to_string formula)
+        | P.F formula -> text (Formula.to_string formula)
       end
     end
 
@@ -175,7 +183,7 @@ struct
     proofbox begin%concat
       premisebox begin%concat
         concat_list rendered_premises;
-        div ~attrs:[A.class_ "rulename"] (text (C.name_of_rule name))
+        div ~attrs:[A.class_ "rulename"] (text (Calculus.name_of_rule name))
       end;
       formulabox point (PT.formula point)
     end
@@ -184,7 +192,7 @@ struct
     match assumption with
       | Some assumption ->
          assumption_box
-           ~assumption:(F.to_string assumption)
+           ~assumption:(Formula.to_string assumption)
            rendered_subtree
       | None ->
          rendered_subtree
@@ -196,12 +204,13 @@ struct
       render_box
       prooftree
 
-  let initial = PT.initial
+  let initial formula =
+    PT.hole formula
 
   let update action prooftree = match action with
     | DoNothing              -> prooftree
     | ApplyRule (path, rule) -> R.get_ok (PT.apply rule path)
     | ResetTo path           -> PT.make_open path
-    | Update (path, partial) -> PT.set_partial partial path
+    | Update (path, partial) -> PT.set_hole (Some partial) path
 
 end
