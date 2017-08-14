@@ -2,3 +2,4 @@
 natural-deduction.js
 .merlin
 /_build
+/*.install

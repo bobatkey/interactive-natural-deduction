@@ -9,3 +9,18 @@
 
 (menhir
  ((modules (Formula_parser))))
+
+(rule
+ ((targets (natural-deduction.js))
+  (deps    (Main.bc.js))
+  (action  (copy ${<} ${@}))))
+
+(alias
+ ((name demosite)
+  (deps (natural-deduction.js natural-deduction.html))))
+
+(install
+ ((section share)
+  (package natural-deduction)
+  (files   (natural-deduction.js
+            natural-deduction.html))))
