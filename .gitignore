@@ -1,10 +1,4 @@
-src/_build
-lib_mvc/_build
 *~
 natural-deduction.js
-/build-support/mlbindep
-/build-support/mlbindep.cm*
-/build-support/of_merlin
-/build-support/of_merlin.cm*
 .merlin
 /_build
