@@ -3,7 +3,9 @@
 include Html.S
 
 module E : sig
-  val onkeypress    : (int -> int -> 'action option) -> 'action attribute
+  val onkeypress    : (Uchar.t -> 'action option) -> 'action attribute
+  val onkeydown     : (Dom_html.Keyboard_code.t -> 'action option) -> 'action attribute
+  val onkeyup       : (Dom_html.Keyboard_code.t -> 'action option) -> 'action attribute
   val onclick       : 'action -> 'action attribute
   val ondoubleclick : 'action -> 'action attribute
   val oninput       : (string -> 'action) -> 'action attribute

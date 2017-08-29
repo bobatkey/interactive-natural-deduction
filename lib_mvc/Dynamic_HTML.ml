@@ -348,13 +348,21 @@ module E = struct
     A_Event
       (Dom_html.Event.keypress,
        fun node ev ->
-         let char_code = Js.Optdef.get (ev##.charCode) (fun () -> 0) in
-         (* FIXME: and all the other attributes of ev *)
-         (*           let key =
-                      Js.to_string @@
-                      Js.Optdef.get (ev##keyIdentifier) (fun () -> Js.string "")
-                      in*)
-         f (ev##.keyCode) char_code)
+         match Dom_html.Keyboard_key.of_event ev with
+           | None      -> None
+           | Some char -> f char)
+
+  let onkeydown f =
+    A_Event
+      (Dom_html.Event.keydown,
+       fun node ev ->
+         f (Dom_html.Keyboard_code.of_event ev))
+
+  let onkeyup f =
+    A_Event
+      (Dom_html.Event.keyup,
+       fun node ev ->
+         f (Dom_html.Keyboard_code.of_event ev))
 
   let onclick action =
     A_Event
