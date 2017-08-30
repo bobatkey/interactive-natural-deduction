@@ -1,4 +1,4 @@
-open Lib_mvc
+open Ulmus
 
 (* FIXME: investigate Document.caretPositionFromPoint()
     https://developer.mozilla.org/en-US/docs/Web/API/document/caretPositionFromPoint *)

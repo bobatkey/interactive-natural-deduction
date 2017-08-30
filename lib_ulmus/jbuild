@@ -1,7 +1,7 @@
 (jbuild_version 1)
 
 (library
- ((name lib_mvc)
-  (public_name lib_mvc)
+ ((name        ulmus)
+  (public_name ulmus)
   (libraries (js_of_ocaml))
   (preprocess (pps (js_of_ocaml-ppx)))))
