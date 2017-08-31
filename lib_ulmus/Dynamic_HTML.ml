@@ -498,8 +498,8 @@ let rec update_tree : 'a. ('a -> bool Js.t) -> Dom_html.element Js.t -> tree -> 
          let children    = update h node children1 children2 in
          El_existing (node, tag2, attrs2, handler_ids, children)
 
-      | Text_existing (node, text1), Text text2 when text1 = text2 ->
-         Text_existing (node, text1)
+      | Text_existing (node, text1), Text text2 when text1 == text2 || text1 = text2 ->
+         existing_tree
 
       | Text_existing (node, text1), Text text2 ->
          node##.data := !$text2;
