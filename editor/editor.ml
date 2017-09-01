@@ -2,16 +2,15 @@ type state =
   Focus_buffer.t
 
 type movement =
-  [ `Up
-  | `Down
-  | `Left
-  | `Right
-  | `Offset of int
-  | `StartOfLine
-  | `EndOfLine
-  | `Start
-  | `End
-  ]
+  | Up
+  | Down
+  | Left
+  | Right
+  | Offset of int
+  | StartOfLine
+  | EndOfLine
+  | Start
+  | End
 
 type edit =
   | Delete_forwards
@@ -27,23 +26,23 @@ let onkeydown modifiers key =
   let open Dom_html.Keyboard_code in
   let open Ulmus.Dynamic_HTML in
   match key with
-    | ArrowUp    -> Some (Movement `Up)
-    | ArrowDown  -> Some (Movement `Down)
-    | ArrowLeft  -> Some (Movement `Left)
-    | ArrowRight -> Some (Movement `Right)
+    | ArrowUp    -> Some (Movement Up)
+    | ArrowDown  -> Some (Movement Down)
+    | ArrowLeft  -> Some (Movement Left)
+    | ArrowRight -> Some (Movement Right)
     | Backspace  -> Some (Edit Delete_backwards)
     | Enter      -> Some (Edit Newline)
     | Delete     -> Some (Edit Delete_forwards)
     | Home       ->
        if modifiers.ctrl then
-         Some (Movement `Start)
+         Some (Movement Start)
        else
-         Some (Movement `StartOfLine)
+         Some (Movement StartOfLine)
     | End        ->
        if modifiers.ctrl then
-         Some (Movement `End)
+         Some (Movement End)
        else
-         Some (Movement `EndOfLine)
+         Some (Movement EndOfLine)
     | Tab        -> Some (Edit (Insert 'X'))
     | _          -> None
 
@@ -62,7 +61,7 @@ let onkeypress modifiers c =
 let line ?(current=false) num children =
   let open Ulmus.Dynamic_HTML in
   pre ~attrs:[ A.class_ (if current then "line current-line" else "line")
-             ; E.onclick (Movement (`Offset num))
+             ; E.onclick (Movement (Offset num))
              ]
     children
 
@@ -99,25 +98,25 @@ let render buffer =
     end
 
 let update = function
-  | Movement `Up ->
+  | Movement Up ->
      Focus_buffer.move_up
-  | Movement `Down ->
+  | Movement Down ->
      Focus_buffer.move_down
-  | Movement `Left ->
+  | Movement Left ->
      Focus_buffer.move_left
-  | Movement `Right ->
+  | Movement Right ->
      Focus_buffer.move_right
-  | Movement (`Offset i) when i < 0 ->
+  | Movement (Offset i) when i < 0 ->
      let rec loop i x = if i = 0 then x else loop (i+1) (Focus_buffer.move_up x) in loop i
-  | Movement (`Offset i) ->
+  | Movement (Offset i) ->
      let rec loop i x = if i = 0 then x else loop (i-1) (Focus_buffer.move_down x) in loop i
-  | Movement `StartOfLine ->
+  | Movement StartOfLine ->
      Focus_buffer.move_start_of_line
-  | Movement `EndOfLine ->
+  | Movement EndOfLine ->
      Focus_buffer.move_end_of_line
-  | Movement `Start ->
+  | Movement Start ->
      Focus_buffer.move_start
-  | Movement `End ->
+  | Movement End ->
      Focus_buffer.move_end
   | Edit (Insert c) ->
      Focus_buffer.insert c
