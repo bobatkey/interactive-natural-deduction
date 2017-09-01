@@ -343,26 +343,44 @@ module A = struct
 end
 
 (* Events *)
+
+type key_modifiers =
+  { alt   : bool
+  ; shift : bool
+  ; ctrl  : bool
+  ; meta  : bool
+  }
+
+let modifiers_of_keyboardevent (ev : Dom_html.keyboardEvent Js.t) =
+  { alt   = Js.to_bool ev##.altKey
+  ; shift = Js.to_bool ev##.shiftKey
+  ; ctrl  = Js.to_bool ev##.ctrlKey
+  ; meta  = Js.to_bool ev##.metaKey
+  }
+
 module E = struct
   let onkeypress f =
     A_Event
       (Dom_html.Event.keypress,
        fun node ev ->
+         let modifiers = modifiers_of_keyboardevent ev in
          match Dom_html.Keyboard_key.of_event ev with
            | None      -> None
-           | Some char -> f char)
+           | Some char -> f modifiers char)
 
   let onkeydown f =
     A_Event
       (Dom_html.Event.keydown,
        fun node ev ->
-         f (Dom_html.Keyboard_code.of_event ev))
+         let modifiers = modifiers_of_keyboardevent ev in
+         f modifiers (Dom_html.Keyboard_code.of_event ev))
 
   let onkeyup f =
     A_Event
       (Dom_html.Event.keyup,
        fun node ev ->
-         f (Dom_html.Keyboard_code.of_event ev))
+         let modifiers = modifiers_of_keyboardevent ev in
+         f modifiers (Dom_html.Keyboard_code.of_event ev))
 
   let onclick action =
     A_Event

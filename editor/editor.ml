@@ -56,8 +56,9 @@ type action =
   | Delete
   | Movement of movement
 
-let onkeydown key =
+let onkeydown modifiers key =
   let open Dom_html.Keyboard_code in
+  let open Ulmus.Dynamic_HTML in
   match key with
     | ArrowUp    -> Some (Movement `Up)
     | ArrowDown  -> Some (Movement `Down)
@@ -66,15 +67,28 @@ let onkeydown key =
     | Backspace  -> Some Backspace
     | Enter      -> Some Newline
     | Delete     -> Some Delete
-    | Home       -> Some (Movement `Start (*OfLine *))
-    | End        -> Some (Movement `End (* OfLine *))
+    | Home       ->
+       if modifiers.ctrl then
+         Some (Movement `Start)
+       else
+         Some (Movement `StartOfLine)
+    | End        ->
+       if modifiers.ctrl then
+         Some (Movement `End)
+       else
+         Some (Movement `EndOfLine)
     | Tab        -> Some (Insert 'X')
     | _          -> None
 
-let onkeypress c =
-  match Uchar.to_char c with
-    | c -> Some (Insert c)
-    | exception _ -> None
+let onkeypress modifiers c =
+  let open Ulmus.Dynamic_HTML in
+  match modifiers, Uchar.to_char c with
+    | { alt = false; ctrl = false; meta = false}, c ->
+       Some (Insert c)
+    | _ ->
+       None
+    | exception _ ->
+       None
 
 (**** Rendering *)
 
@@ -87,15 +101,14 @@ let line ?(current=false) num children =
 
 let render_current_line current_line =
   let open Ulmus.Dynamic_HTML in
-  let before, after = Focus_line.decompose current_line in
   line ~current:true 0 begin
-    text before
-    ^^
-    match after with
-      | None ->
-         span ~attrs:[A.class_ "cursor"] (text " ")
-      | Some (focus, after) ->
-         span ~attrs:[A.class_ "cursor"] (text focus) ^^ text after
+    match Focus_line.decompose current_line with
+      | before, "" ->
+         text before ^^ span ~attrs:[A.class_ "cursor"] (text " ")
+      | before, after ->
+         let focus = String.make 1 after.[0]
+         and after = String.sub after 1 (String.length after - 1) in
+         text before ^^ span ~attrs:[A.class_ "cursor"] (text focus) ^^ text after
   end
 
 let render buffer =
