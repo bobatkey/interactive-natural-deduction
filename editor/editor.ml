@@ -22,18 +22,6 @@
       - state-based analysis?
 *)
 
-
-module List = struct
-  include List
-
-  let rev_mapi f l =
-    let rec loop i acc = function
-      | []    -> acc
-      | x::xs -> loop (i+1) (f i x::acc) xs
-    in
-    loop 0 [] l
-end
-
 type state =
   Focus_buffer.t
 
@@ -49,11 +37,14 @@ type movement =
   | `End
   ]
 
-type action =
+type edit =
+  | Delete_forwards
+  | Delete_backwards
   | Insert of char
-  | Backspace
   | Newline
-  | Delete
+
+type action =
+  | Edit of edit
   | Movement of movement
 
 let onkeydown modifiers key =
@@ -64,9 +55,9 @@ let onkeydown modifiers key =
     | ArrowDown  -> Some (Movement `Down)
     | ArrowLeft  -> Some (Movement `Left)
     | ArrowRight -> Some (Movement `Right)
-    | Backspace  -> Some Backspace
-    | Enter      -> Some Newline
-    | Delete     -> Some Delete
+    | Backspace  -> Some (Edit Delete_backwards)
+    | Enter      -> Some (Edit Newline)
+    | Delete     -> Some (Edit Delete_forwards)
     | Home       ->
        if modifiers.ctrl then
          Some (Movement `Start)
@@ -77,14 +68,14 @@ let onkeydown modifiers key =
          Some (Movement `End)
        else
          Some (Movement `EndOfLine)
-    | Tab        -> Some (Insert 'X')
+    | Tab        -> Some (Edit (Insert 'X'))
     | _          -> None
 
 let onkeypress modifiers c =
   let open Ulmus.Dynamic_HTML in
   match modifiers, Uchar.to_char c with
     | { alt = false; ctrl = false; meta = false}, c ->
-       Some (Insert c)
+       Some (Edit (Insert c))
     | _ ->
        None
     | exception _ ->
@@ -124,11 +115,11 @@ let render buffer =
            ; E.onkeydown onkeydown
            ]
     begin
-      concat_list (List.rev_mapi (fun i -> line (-(i+1))) before)
+      snd (List.fold_left (fun (i,doc) content -> (i-1,line i content ^^ doc)) (-1,empty) before)
       ^^
       render_current_line current
       ^^
-      concat_list (List.mapi (fun i -> line (i+1)) after)
+      snd (List.fold_left (fun (i,doc) content -> (i+1,doc ^^ line i content )) (1,empty) after)
     end
 
 let update = function
@@ -152,13 +143,13 @@ let update = function
      Focus_buffer.move_start
   | Movement `End ->
      Focus_buffer.move_end
-  | Insert c ->
+  | Edit (Insert c) ->
      Focus_buffer.insert c
-  | Backspace ->
+  | Edit Delete_backwards ->
      Focus_buffer.delete_backwards
-  | Newline ->
+  | Edit Newline ->
      Focus_buffer.insert_newline
-  | Delete ->
+  | Edit Delete_forwards ->
      Focus_buffer.delete_forwards
 
 let initial =
