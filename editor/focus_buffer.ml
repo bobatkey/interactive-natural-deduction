@@ -101,6 +101,34 @@ let move_start_of_line ({current_line} as t) =
 let move_end_of_line ({current_line} as t) =
   { t with current_line = Focus_line.move_end current_line }
 
+let move_start {lines_before; current_line; lines_after} =
+  let lines =
+    List.rev_append lines_before (Focus_line.content current_line :: lines_after)
+  in
+  match lines with
+    | [] ->
+       assert false
+    | line::lines_after ->
+       { lines_before = []
+       ; current_line = Focus_line.of_string_at_start line
+       ; lines_after
+       ; cursor_col   = None
+       }
+
+let move_end {lines_before; current_line; lines_after} =
+  let lines =
+    List.rev_append lines_after (Focus_line.content current_line :: lines_before)
+  in
+  match lines with
+    | [] ->
+       assert false
+    | line::lines_before ->
+       { lines_before
+       ; current_line = Focus_line.of_string_at_end line
+       ; lines_after  = []
+       ; cursor_col   = None
+       }
+
 let insert c ({current_line} as t) =
   if c = '\n' then invalid_arg "Focus_buffer.insert";
   { t with current_line = Focus_line.insert c current_line

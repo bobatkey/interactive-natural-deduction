@@ -45,6 +45,8 @@ type movement =
   | `Offset of int
   | `StartOfLine
   | `EndOfLine
+  | `Start
+  | `End
   ]
 
 type action =
@@ -64,8 +66,8 @@ let onkeydown key =
     | Backspace  -> Some Backspace
     | Enter      -> Some Newline
     | Delete     -> Some Delete
-    | Home       -> Some (Movement `StartOfLine)
-    | End        -> Some (Movement `EndOfLine)
+    | Home       -> Some (Movement `Start (*OfLine *))
+    | End        -> Some (Movement `End (* OfLine *))
     | Tab        -> Some (Insert 'X')
     | _          -> None
 
@@ -133,6 +135,10 @@ let update = function
      Focus_buffer.move_start_of_line
   | Movement `EndOfLine ->
      Focus_buffer.move_end_of_line
+  | Movement `Start ->
+     Focus_buffer.move_start
+  | Movement `End ->
+     Focus_buffer.move_end
   | Insert c ->
      Focus_buffer.insert c
   | Backspace ->

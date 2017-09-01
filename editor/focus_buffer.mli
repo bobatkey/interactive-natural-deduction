@@ -55,6 +55,14 @@ val move_start_of_line : t -> t
     [t], but with the point moved to the end of the current line. *)
 val move_end_of_line : t -> t
 
+(** [move_start t] returns a buffer with the same content as [t], with
+    the point moved to the start of the first line of the buffer. *)
+val move_start : t -> t
+
+(** [move_end t] returns a buffer with the same content as [t], with
+    the point moved to the end of the last line of the buffer. *)
+val move_end : t -> t
+
 (**{2 Editing} *)
 
 (** [insert c t] returns a buffer with the character [c] inserted at
