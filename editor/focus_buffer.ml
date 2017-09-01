@@ -5,6 +5,8 @@ type t =
   ; lines_after  : string list
   }
 
+type focus_line = Focus_line.t
+
 let decompose { lines_before; current_line; lines_after } =
   lines_before, current_line, lines_after
 
@@ -42,7 +44,7 @@ let move_up ({lines_before;current_line;cursor_col;lines_after} as t) =
        t
     | new_current_line::lines_before ->
        let pos          = Focus_line.position current_line in
-       let line         = Focus_line.to_string current_line in
+       let line         = Focus_line.content current_line in
        let pos          = match cursor_col with None -> pos | Some col -> col in
        let current_line = Focus_line.of_string_at pos new_current_line in
        { lines_before
@@ -57,7 +59,7 @@ let move_down ({lines_before;current_line;cursor_col;lines_after} as t) =
        { t with current_line = Focus_line.move_end current_line }
     | new_current_line::lines_after ->
        let pos          = Focus_line.position current_line in
-       let line         = Focus_line.to_string current_line in
+       let line         = Focus_line.content current_line in
        let pos          = match cursor_col with None -> pos | Some col -> col in
        let current_line = Focus_line.of_string_at pos new_current_line in
        { lines_before = line::lines_before
@@ -74,8 +76,7 @@ let move_left ({current_line} as t) =
          | [] ->
             t
          | line::lines_before ->
-            let lines_after  =
-              Focus_line.to_string current_line::lines_after in
+            let lines_after  = Focus_line.content current_line::lines_after in
             let current_line = Focus_line.of_string_at_end line in
             { lines_before; current_line; lines_after; cursor_col = None })
     | Some current_line ->
@@ -88,8 +89,7 @@ let move_right ({current_line} as t) =
        (match lines_after with
          | [] -> t
          | line::lines_after ->
-            let lines_before =
-              Focus_line.to_string current_line::lines_before in
+            let lines_before = Focus_line.content current_line::lines_before in
             let current_line = Focus_line.of_string_at_start line in
             { lines_before; current_line; lines_after; cursor_col = None })
     | Some current_line ->
@@ -102,7 +102,7 @@ let move_end_of_line ({current_line} as t) =
   { t with current_line = Focus_line.move_end current_line }
 
 let insert c ({current_line} as t) =
-  if c = '\n' then invalid_arg "EditBuffer.insert";
+  if c = '\n' then invalid_arg "Focus_buffer.insert";
   { t with current_line = Focus_line.insert c current_line
          ; cursor_col = None
   }
@@ -123,7 +123,7 @@ let delete_backwards ({current_line} as t) =
             t
          | line::lines_before ->
             let current_line =
-              Focus_line.of_strings line (Focus_line.to_string current_line)
+              Focus_line.of_strings line (Focus_line.content current_line)
             in
             { t with lines_before; current_line; cursor_col = None })
     | Some current_line ->
@@ -137,7 +137,7 @@ let delete_forwards ({current_line} as t) =
             t
          | line::lines_after ->
             let current_line =
-              Focus_line.of_strings (Focus_line.to_string current_line) line
+              Focus_line.of_strings (Focus_line.content current_line) line
             in
             { t with current_line; lines_after; cursor_col = None })
     | Some current_line ->

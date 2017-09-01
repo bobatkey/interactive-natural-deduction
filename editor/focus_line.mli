@@ -1,42 +1,81 @@
+(** Representation of text with a focus point. *)
 type t
+
+type content = string
 
 (**{2 Creation} *)
 
+(** [empty] is the focused line with no content. *)
 val empty : t
 
-val of_string_at_start : string -> t
-
-val of_string_at_end : string -> t
-
+(** [of_strings ~before ~after] constructs a focus line with the
+    content [before ^ after] the point placed between [before] and
+    [after]. *)
 val of_strings : before:string -> after:string -> t
 
+(** [of_string_at_start str] constructs a focus line with the content
+    [str] and the focus placed at the start. *)
+val of_string_at_start : string -> t
+
+(** [of_string_at_end str] constructs a focus line with the content
+    [str] and the focus placed at the end. *)
+val of_string_at_end : string -> t
+
+(** [of_string_at i str] returns a focused line with the content
+    [str], and the focus at position [i]. If [i] is greater than the
+    length of [str], the focus is placed at the end. *)
 val of_string_at : int -> string -> t
 
 (**{2 Queries} *)
 
+(** [position t] returns the index of the focus point of [t]. This
+    index can be used with {!of_string_at} to focus some other string
+    at the same location. *)
 val position : t -> int
 
-val to_string : t -> string
+(** [content t] returns the content of [t], forgetting the focus
+    point. *)
+val content : t -> string
 
 val decompose : t -> string * (string * string) option
 
 (**{2 Movement} *)
 
-val move_end : t -> t
-
+(** [move_start t] returns a line with the same content as [t], and
+    with the focus moved to the start of the line. *)
 val move_start : t -> t
 
+(** [move_end t] returns a line with the same content as [t], and
+    with the focus moved to the end of the line. *)
+val move_end : t -> t
+
+(** [move_left t] returns a line with the focus moved one character to
+    the left. If the focus was at the start of the line, [None] is
+    returned. *)
 val move_left : t -> t option
 
+(** [move_right t] returns a line with the focus moved one character
+    to the right. If the focus was at the end of the line, [None] is
+    returned. *)
 val move_right : t -> t option
 
 (**{2 Editing} *)
 
-(** [insert c line] returns a line with [c] inserted at the point. *)
+(** [insert c line] returns a line with [c] inserted at the focus. The
+    focus is moved to after the inserted character. *)
 val insert : char -> t -> t
 
+(** [split t] splits [t] at the focus point, returning the string
+    before the point, and a focused string after the point. The focus
+    of the returned string is placed at the start. *)
 val split : t -> string * t
 
+(** [delete_backwards t] returns a focused line with the character
+    before the focus removed. If the focus point is at the start, then
+    [None] is returned. *)
 val delete_backwards : t -> t option
 
+(** [delete_forwardss t] returns a focused line with the character
+    after the focus removed. If the focus point is at the end, then
+    [None] is returned. *)
 val delete_forwards : t -> t option

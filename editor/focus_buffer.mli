@@ -1,20 +1,31 @@
+(** Line-oriented buffers of text with a focused point *)
+
+(**{1 Focus Buffers} *)
+
 (** Representation of text buffers with a focus point where editing
     can occur. *)
 type t
 
-(** [decompose buf] splits the buffer [t] into the lines before the
-    current point (in reverse order), the line with the current point
-    on, and the lines after the current point. *)
-val decompose : t -> string list * Focus_line.t * string list
+type focus_line = Focus_line.t
+
+(**{2 Creation} *)
 
 (** [of_string str] creates a buffer with the contents [str], with
     the current point set to the start of the content. *)
 val of_string : string -> t
 
+(**{2 Queries} *)
+
+(** [decompose buf] splits the buffer [t] into the lines before the
+    current point (in reverse order), the line with the current point
+    on, and the lines after the current point. *)
+val decompose : t -> string list * focus_line * string list
+
+(**{2 Movement} *)
+
 (** [move_up t] returns a buffer with the same content as [t], but
     with the point moved up by one line. If the point is already on the
-    first line, then the point is moved to the start of the line (which
-    is also the start of the buffer). FIXME: document the column
+    first line, then the point is not moved. FIXME: document the column
     memory. *)
 val move_up : t -> t
 
@@ -43,6 +54,8 @@ val move_start_of_line : t -> t
 (** [move_end_of_line t] returns a buffer with the same content as
     [t], but with the point moved to the end of the current line. *)
 val move_end_of_line : t -> t
+
+(**{2 Editing} *)
 
 (** [insert c t] returns a buffer with the character [c] inserted at
     the current point. The point in the returned buffer is placed after

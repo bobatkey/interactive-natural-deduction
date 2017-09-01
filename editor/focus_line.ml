@@ -13,6 +13,7 @@ let of_strings ~before:before ~after:after =
   { before; after }
 
 let of_string_at i string =
+  if i < 0 then invalid_arg "Focus_line.of_string_at";
   if i > String.length string then
     { before = string
     ; after  = ""
@@ -27,7 +28,7 @@ let empty = of_string_at_start ""
 let position {before} =
   String.length before
 
-let to_string {before; after} =
+let content {before; after} =
   before ^ after
 
 let move_end {before;after} =

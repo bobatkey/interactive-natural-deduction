@@ -2,4 +2,5 @@
 
 (executable
  ((name editor_main)
-  (libraries (ulmus js_of_ocaml))))
+  (libraries (ulmus js_of_ocaml))
+  (flags (:standard -safe-string))))
