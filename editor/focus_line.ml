@@ -3,14 +3,13 @@ type t =
   ; after  : string
   }
 
+type content = string
+
 let of_string_at_start str =
   { before = ""; after = str }
 
 let of_string_at_end str =
   { before = str; after = "" }
-
-let of_strings ~before:before ~after:after =
-  { before; after }
 
 let of_string_at i string =
   if i < 0 then invalid_arg "Focus_line.of_string_at";
@@ -22,6 +21,14 @@ let of_string_at i string =
     { before = String.sub string 0 i
     ; after  = String.sub string i (String.length string - i)
     }
+
+let join_start str {before; after} =
+  { before = str
+  ; after  = before ^ after }
+
+let join_end {before; after} str =
+  { before = before ^ after
+  ; after = str }
 
 let empty = of_string_at_start ""
 
@@ -87,9 +94,4 @@ let delete_forwards {before; after} =
          }
 
 let decompose {before; after} =
-  if String.length after = 0 then
-    (before, None)
-  else
-    (before,
-     Some (String.make 1 after.[0],
-           String.sub after 1 (String.length after - 1)))
+  before, after

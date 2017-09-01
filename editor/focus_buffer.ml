@@ -144,14 +144,11 @@ let insert_newline ({lines_before;current_line} as t) =
 let delete_backwards ({current_line} as t) =
   match Focus_line.delete_backwards current_line with
     | None ->
-       let {lines_before;lines_after} = t in
-       (match lines_before with
+       (match t.lines_before with
          | [] ->
             t
          | line::lines_before ->
-            let current_line =
-              Focus_line.of_strings line (Focus_line.content current_line)
-            in
+            let current_line = Focus_line.join_start line current_line in
             { t with lines_before; current_line; cursor_col = None })
     | Some current_line ->
        { t with current_line; cursor_col = None }
@@ -163,9 +160,7 @@ let delete_forwards ({current_line} as t) =
          | [] ->
             t
          | line::lines_after ->
-            let current_line =
-              Focus_line.of_strings (Focus_line.content current_line) line
-            in
+            let current_line = Focus_line.join_end current_line line in
             { t with current_line; lines_after; cursor_col = None })
     | Some current_line ->
        { t with current_line; cursor_col = None }

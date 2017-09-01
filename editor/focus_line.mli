@@ -8,23 +8,18 @@ type content = string
 (** [empty] is the focused line with no content. *)
 val empty : t
 
-(** [of_strings ~before ~after] constructs a focus line with the
-    content [before ^ after] the point placed between [before] and
-    [after]. *)
-val of_strings : before:string -> after:string -> t
-
 (** [of_string_at_start str] constructs a focus line with the content
     [str] and the focus placed at the start. *)
-val of_string_at_start : string -> t
+val of_string_at_start : content -> t
 
 (** [of_string_at_end str] constructs a focus line with the content
     [str] and the focus placed at the end. *)
-val of_string_at_end : string -> t
+val of_string_at_end : content -> t
 
 (** [of_string_at i str] returns a focused line with the content
     [str], and the focus at position [i]. If [i] is greater than the
     length of [str], the focus is placed at the end. *)
-val of_string_at : int -> string -> t
+val of_string_at : int -> content -> t
 
 (**{2 Queries} *)
 
@@ -35,9 +30,11 @@ val position : t -> int
 
 (** [content t] returns the content of [t], forgetting the focus
     point. *)
-val content : t -> string
+val content : t -> content
 
-val decompose : t -> string * (string * string) option
+(** [decompose t] splits [t] into two pieces of content, the content
+    before and the content after the focus point of [t]. *)
+val decompose : t -> string * string
 
 (**{2 Movement} *)
 
@@ -79,3 +76,11 @@ val delete_backwards : t -> t option
     after the focus removed. If the focus point is at the end, then
     [None] is returned. *)
 val delete_forwards : t -> t option
+
+(** [join_start str t] returns a focused line with [str] preprended on
+    to [t], and the focus placed at the join point. *)
+val join_start : content -> t -> t
+
+(** [join_end str t] returns a focused line with [str] appended on to
+    [t], and the focus placed at the join point. *)
+val join_end : t -> content -> t
