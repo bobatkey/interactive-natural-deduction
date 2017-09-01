@@ -1,27 +1,3 @@
-(* FIXME: investigate Document.caretPositionFromPoint()
-    https://developer.mozilla.org/en-US/docs/Web/API/document/caretPositionFromPoint *)
-
-(* Data Structures for Text Sequences
-   http://www.cs.unm.edu/~crowley/papers/sds/sds.html
-*)
-
-(* TODO *)
-(* 1. More navigation:
-      - start of buffer
-      - end of buffer
-      - search for text? *)
-(* 2. Selection mode
-      - "mark set"
-      - basically, the cursor'd region becomes a sequence instead of a
-        single character
-      - movement changes the 'point', which can be before or after the
-        mark
-      - making any edit command replaces the selection with the result
-        of the edit. *)
-(* 3. Syntax highlight/semantic analysis
-      - state-based analysis?
-*)
-
 type state =
   Focus_buffer.t
 
