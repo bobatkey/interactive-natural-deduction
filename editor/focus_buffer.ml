@@ -1,11 +1,11 @@
+type focus_line = Focus_line.t
+
 type t =
   { lines_before : string list
-  ; current_line : Focus_line.t
+  ; current_line : focus_line
   ; cursor_col   : int option
   ; lines_after  : string list
   }
-
-type focus_line = Focus_line.t
 
 let decompose { lines_before; current_line; lines_after } =
   lines_before, current_line, lines_after
@@ -68,10 +68,9 @@ let move_down ({lines_before;current_line;cursor_col;lines_after} as t) =
        ; lines_after
        }
 
-let move_left ({current_line} as t) =
+let move_left ({current_line; lines_before; lines_after} as t) =
   match Focus_line.move_left current_line with
     | None ->
-       let {lines_before;lines_after} = t in
        (match lines_before with
          | [] ->
             t
@@ -82,12 +81,12 @@ let move_left ({current_line} as t) =
     | Some current_line ->
        { t with current_line; cursor_col = None }
 
-let move_right ({current_line} as t) =
+let move_right ({current_line; lines_before; lines_after} as t) =
   match Focus_line.move_right current_line with
     | None ->
-       let {lines_before;lines_after} = t in
        (match lines_after with
-         | [] -> t
+         | [] ->
+            t
          | line::lines_after ->
             let lines_before = Focus_line.content current_line::lines_before in
             let current_line = Focus_line.of_string_at_start line in
