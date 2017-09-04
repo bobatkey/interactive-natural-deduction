@@ -228,9 +228,9 @@ struct
       | [] ->
          t
       | new_current_line::lines_before ->
-         let pos          = AFL.position current_line in
-         let line         = AFL.content current_line in
-         let pos          = match cursor_col with None -> pos | Some col -> col in
+         let pos  = AFL.position current_line in
+         let line = AFL.content current_line in
+         let pos  = match cursor_col with None -> pos | Some col -> col in
          let current_line = AFL.of_annotated_line_at pos new_current_line in
          { lines_before
          ; current_line
@@ -243,9 +243,9 @@ struct
       | [] ->
          { t with current_line = AFL.move_end current_line }
       | new_current_line::lines_after ->
-         let pos          = AFL.position current_line in
-         let line         = AFL.content current_line in
-         let pos          = match cursor_col with None -> pos | Some col -> col in
+         let pos  = AFL.position current_line in
+         let line = AFL.content current_line in
+         let pos  = match cursor_col with None -> pos | Some col -> col in
          let current_line = AFL.of_annotated_line_at pos new_current_line in
          { lines_before = line::lines_before
          ; cursor_col   = Some pos
@@ -253,37 +253,27 @@ struct
          ; lines_after
          }
 
+  let move_start_of_line ({current_line} as t) =
+    { t with current_line = AFL.move_start current_line
+           ; cursor_col   = None }
+
+  let move_end_of_line ({current_line} as t) =
+    { t with current_line = AFL.move_end current_line
+           ; cursor_col   = None }
+
   let move_left ({current_line; lines_before; lines_after} as t) =
     match AFL.move_left current_line with
       | None ->
-         (match lines_before with
-           | [] ->
-              t
-           | line::lines_before ->
-              let lines_after  = AFL.content current_line::lines_after in
-              let current_line = AFL.of_annotated_line_at_end line in
-              { lines_before; current_line; lines_after; cursor_col = None })
+         move_end_of_line (move_up t)
       | Some current_line ->
          { t with current_line; cursor_col = None }
 
   let move_right ({current_line; lines_before; lines_after} as t) =
     match AFL.move_right current_line with
       | None ->
-         (match lines_after with
-           | [] ->
-              t
-           | line::lines_after ->
-              let lines_before = AFL.content current_line::lines_before in
-              let current_line = AFL.of_annotated_line_at_start line in
-              { lines_before; current_line; lines_after; cursor_col = None })
+         move_start_of_line (move_down t)
       | Some current_line ->
          { t with current_line; cursor_col = None }
-
-  let move_start_of_line ({current_line} as t) =
-    { t with current_line = AFL.move_start current_line }
-
-  let move_end_of_line ({current_line} as t) =
-    { t with current_line = AFL.move_end current_line }
 
   let move_start {lines_before; current_line; lines_after} =
     let lines =
@@ -328,16 +318,28 @@ struct
     ; cursor_col   = None
     }
 
+  let join_up ({lines_before;current_line;lines_after} as t) =
+    match lines_before with
+      | [] ->
+         t
+      | line::lines_before ->
+         let current_line, state' = AFL.join_start line current_line in
+         let lines_after = push_update state' lines_after in
+         { lines_before; current_line; cursor_col = None; lines_after }
+
+  let join_down ({current_line; lines_after} as t) =
+    match lines_after with
+      | [] ->
+         t
+      | line::lines_after ->
+         let current_line, state' = AFL.join_end current_line line in
+         let lines_after = push_update state' lines_after in
+         { t with current_line; lines_after; cursor_col = None }
+
   let delete_backwards ({current_line;lines_after} as t) =
     match AFL.delete_backwards current_line with
       | None ->
-         (match t.lines_before with
-           | [] ->
-              t
-           | line::lines_before ->
-              let current_line, state' = AFL.join_start line current_line in
-              let lines_after = push_update state' lines_after in
-              { lines_before; current_line; cursor_col = None; lines_after })
+         join_up t
       | Some (current_line, state') ->
          let lines_after = push_update state' lines_after in
          { t with current_line; cursor_col = None; lines_after }
@@ -345,13 +347,7 @@ struct
   let delete_forwards ({current_line;lines_after} as t) =
     match AFL.delete_forwards current_line with
       | None ->
-         (match lines_after with
-           | [] ->
-              t
-           | line::lines_after ->
-              let current_line, state' = AFL.join_end current_line line in
-              let lines_after = push_update state' lines_after in
-              { t with current_line; lines_after; cursor_col = None })
+         join_down t
       | Some (current_line, state') ->
          let lines_after = push_update state' lines_after in
          { t with current_line; cursor_col = None; lines_after }
