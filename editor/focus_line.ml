@@ -1,97 +1,88 @@
 type t =
-  { before : string
-  ; after  : string
+  { text : string
+  ; pos  : int
   }
 
 type content = string
 
-let of_string_at_start str =
-  { before = ""; after = str }
+let of_string_at_start text =
+  { text; pos = 0 }
 
-let of_string_at_end str =
-  { before = str; after = "" }
+let of_string_at_end text =
+  { text; pos = String.length text }
 
-let of_string_at i string =
+let of_string_at i text =
   if i < 0 then invalid_arg "Focus_line.of_string_at";
-  if i > String.length string then
-    { before = string
-    ; after  = ""
-    }
-  else
-    { before = String.sub string 0 i
-    ; after  = String.sub string i (String.length string - i)
-    }
+  { text; pos = min i (String.length text) }
 
-let join_start str {before; after} =
-  { before = str
-  ; after  = before ^ after }
+let join_start str { text } =
+  { text = str ^ text; pos = String.length str }
 
-let join_end {before; after} str =
-  { before = before ^ after
-  ; after = str }
+let join_end {text} str =
+  { text = text ^ str; pos = String.length text }
 
 let empty = of_string_at_start ""
 
-let position {before} =
-  String.length before
+let position {pos} =
+  pos
 
-let content {before; after} =
-  before ^ after
+let content {text} =
+  text
 
-let move_end {before;after} =
-  { before = before ^ after
-  ; after  = ""
-  }
+let move_end ({text} as t) =
+  { t with pos = String.length text }
 
-let move_start {before;after} =
-  { before = ""
-  ; after  = before ^ after
-  }
+let move_start t =
+  { t with pos = 0 }
 
-let move_left {before;after} =
-  let l = String.length before in
-  if l = 0 then
+let move_left ({pos} as t) =
+  if pos = 0 then
     None
   else
-    Some
-      { before = String.sub before 0 (l - 1)
-      ; after  = String.sub before (l-1) 1 ^ after
-      }
+    Some { t with pos = pos - 1 }
 
-let move_right {before;after} =
-  let l = String.length after in
-  if l = 0 then
+let move_right ({text;pos} as t) =
+  if pos = String.length text then
     None
   else
-    Some { before = before ^ String.sub after 0 1
-         ; after  = String.sub after 1 (l-1)
-         }
+    Some { t with pos = pos + 1 }
 
-let insert c {before; after} =
+let insert c {text; pos} =
   if c = '\n' then invalid_arg "Focus_line.insert";
-  { before = before ^ String.make 1 c
-  ; after
-  }
+  let text =
+    String.init (String.length text + 1)
+      (fun i ->
+         if i < pos then text.[i]
+         else if i = pos then c
+         else text.[i - 1])
+  and pos = pos + 1
+  in
+  { text; pos }
 
-let split {before; after} =
-  (before, { before = ""; after })
+let split {text;pos} =
+  let before = String.sub text 0 pos
+  and after  = String.sub text pos (String.length text - pos) in
+  before, { text = after; pos = 0 }
 
-let delete_backwards {before; after} =
-  let l = String.length before in
-  if l = 0 then
-    None
+let delete_backwards {text; pos} =
+  if pos = 0 then None
   else
-    Some { before = String.sub before 0 (l-1)
-         ; after }
+    let text =
+      String.init (String.length text - 1)
+        (fun i ->
+           if i < pos - 1 then text.[i]
+           else text.[i+1])
+    and pos = pos - 1
+    in
+    Some { text; pos }
 
-let delete_forwards {before; after} =
-  let l = String.length after in
-  if l = 0 then
-    None
+let delete_forwards {text;pos} =
+  if pos = String.length text then None
   else
-    Some { before
-         ; after = String.sub after 1 (l-1)
-         }
-
-let decompose {before; after} =
-  before, after
+    let text =
+      String.init (String.length text - 1)
+        (fun i ->
+           if i >= pos then text.[i+1]
+           else text.[i])
+    in
+    Some {text; pos}

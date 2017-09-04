@@ -32,10 +32,6 @@ val position : t -> int
     point. *)
 val content : t -> content
 
-(** [decompose t] splits [t] into two pieces of content, the content
-    before and the content after the focus point of [t]. *)
-val decompose : t -> string * string
-
 (**{2 Movement} *)
 
 (** [move_start t] returns a line with the same content as [t], and
