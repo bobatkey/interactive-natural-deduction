@@ -1,5 +1,8 @@
+module Buf =
+  Focus_buffer.Make (Line_annotator.Of_lexer (Lexer))
+
 type state =
-  Focus_buffer.t
+  Buf.t
 
 type movement =
   | Up
@@ -58,31 +61,26 @@ let onkeypress modifiers c =
 
 (**** Rendering *)
 
-let line ?(current=false) num children =
+let line ?(current=false) num Buf.{line; spans} =
   let open Ulmus.Dynamic_HTML in
   pre ~attrs:[ A.class_ (if current then "line current-line" else "line")
              ; E.onclick (Movement (Offset num))
              ]
-    children
-
-let render_current_line current_line =
-  let open Ulmus.Dynamic_HTML in
-  line ~current:true 0 begin
-    match Focus_line.decompose current_line with
-      | before, "" ->
-         text before ^^ span ~attrs:[A.class_ "cursor"] (text " ")
-      | before, after ->
-         let focus = String.make 1 after.[0]
-         and after = String.sub after 1 (String.length after - 1) in
-         text before ^^ span ~attrs:[A.class_ "cursor"] (text focus) ^^ text after
-  end
+    (if String.length line = 0 then
+       text " "
+     else
+       fst @@
+       List.fold_left (fun (doc, pos) Focus_buffer.{span_len; span_styles} ->
+           let str = String.sub line pos span_len in
+           (doc ^^
+            span ~attrs:[A.class_ (String.concat " " span_styles)] (text str),
+            pos+span_len))
+         (empty, 0)
+         spans)
 
 let render buffer =
-  let before, current, after = Focus_buffer.decompose buffer in
+  let before, current, after = Buf.view buffer in
   let open Ulmus.Dynamic_HTML in
-  let line num s =
-    if s = "" then line num (text " ") else line num (text s)
-  in
   div
     ~attrs:[ A.tabindex 1
            ; A.class_ "editor"
@@ -92,51 +90,54 @@ let render buffer =
     begin
       snd (List.fold_left (fun (i,doc) content -> (i-1,line i content ^^ doc)) (-1,empty) before)
       ^^
-      render_current_line current
+      line ~current:true 0 current
       ^^
       snd (List.fold_left (fun (i,doc) content -> (i+1,doc ^^ line i content )) (1,empty) after)
     end
 
 let update = function
   | Movement Up ->
-     Focus_buffer.move_up
+     Buf.move_up
   | Movement Down ->
-     Focus_buffer.move_down
+     Buf.move_down
   | Movement Left ->
-     Focus_buffer.move_left
+     Buf.move_left
   | Movement Right ->
-     Focus_buffer.move_right
+     Buf.move_right
   | Movement (Offset i) when i < 0 ->
-     let rec loop i x = if i = 0 then x else loop (i+1) (Focus_buffer.move_up x) in loop i
+     let rec loop i x = if i = 0 then x else loop (i+1) (Buf.move_up x) in loop i
   | Movement (Offset i) ->
-     let rec loop i x = if i = 0 then x else loop (i-1) (Focus_buffer.move_down x) in loop i
+     let rec loop i x = if i = 0 then x else loop (i-1) (Buf.move_down x) in loop i
   | Movement StartOfLine ->
-     Focus_buffer.move_start_of_line
+     Buf.move_start_of_line
   | Movement EndOfLine ->
-     Focus_buffer.move_end_of_line
+     Buf.move_end_of_line
   | Movement Start ->
-     Focus_buffer.move_start
+     Buf.move_start
   | Movement End ->
-     Focus_buffer.move_end
+     Buf.move_end
   | Edit (Insert c) ->
-     Focus_buffer.insert c
+     Buf.insert c
   | Edit Delete_backwards ->
-     Focus_buffer.delete_backwards
+     Buf.delete_backwards
   | Edit Newline ->
-     Focus_buffer.insert_newline
+     Buf.insert_newline
   | Edit Delete_forwards ->
-     Focus_buffer.delete_forwards
+     Buf.delete_forwards
 
 let initial =
-  Focus_buffer.of_string
+  Buf.of_string
     {|Text editor
 
 - Movement works
 - Insertion and deletion of text works
+- (* Syntax *) highlighting
 - Not done:
   - Selections
   - Search and replace
-  - "Semantic" features
+  - More "Semantic" features
+    - Automatic indentation
+    - 
   - Unicode support
   - Viewports
 |}
