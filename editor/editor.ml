@@ -1,5 +1,58 @@
 module Buf =
-  Focus_buffer.Make (Line_annotator.Of_lexer (Lexer))
+  Viewport_buffer.Make (Line_annotator.Of_lexer (Lexer))
+
+(* Higher-level motion and editing commands *)
+
+let move_up buf =
+  match Buf.move_up buf with
+    | None ->
+       buf
+    | Some buf ->
+       buf
+
+let move_down buf =
+  match Buf.move_down buf with
+    | None ->
+       Buf.move_end_of_line buf
+    | Some buf ->
+       buf
+
+let move_left buf =
+  match Buf.move_left buf with
+    | None ->
+       (match Buf.move_up buf with
+         | None     -> buf
+         | Some buf -> Buf.move_end_of_line buf)
+    | Some buf -> buf
+
+let move_right buf =
+  match Buf.move_right buf with
+    | None ->
+       (match Buf.move_down buf with
+         | None     -> buf
+         | Some buf -> Buf.move_start_of_line buf)
+    | Some buf ->
+       buf
+
+let delete_backwards buf =
+  match Buf.delete_backwards buf with
+    | None ->
+       (match Buf.join_up buf with
+         | None -> buf
+         | Some buf -> buf)
+    | Some buf ->
+       buf
+
+let delete_forwards buf =
+  match Buf.delete_forwards buf with
+    | None ->
+       (match Buf.join_down buf with
+         | None -> buf
+         | Some buf -> buf)
+    | Some buf ->
+       buf
+
+
 
 type state =
   Buf.t
@@ -65,7 +118,7 @@ let onkeypress modifiers c =
 
 (**** Rendering *)
 
-let line ?(current=false) num Buf.{line; spans} =
+let line ?(current=false) num Buf.Buf.{line; spans} =
   let open Ulmus.Dynamic_HTML in
   pre ~attrs:[ A.class_ (if current then "line current-line" else "line")
              ; E.onclick (Movement (Offset num))
@@ -110,17 +163,17 @@ let render buffer =
 
 let update = function
   | Movement Up ->
-     Buf.move_up
+     move_up
   | Movement Down ->
-     Buf.move_down
+     move_down
   | Movement Left ->
-     Buf.move_left
+     move_left
   | Movement Right ->
-     Buf.move_right
+     move_right
   | Movement (Offset i) when i < 0 ->
-     let rec loop i x = if i = 0 then x else loop (i+1) (Buf.move_up x) in loop i
+     let rec loop i x = if i = 0 then x else loop (i+1) (move_up x) in loop i
   | Movement (Offset i) ->
-     let rec loop i x = if i = 0 then x else loop (i-1) (Buf.move_down x) in loop i
+     let rec loop i x = if i = 0 then x else loop (i-1) (move_down x) in loop i
   | Movement StartOfLine ->
      Buf.move_start_of_line
   | Movement EndOfLine ->
@@ -132,14 +185,14 @@ let update = function
   | Edit (Insert c) ->
      Buf.insert c
   | Edit Delete_backwards ->
-     Buf.delete_backwards
+     delete_backwards
   | Edit Newline ->
      Buf.insert_newline
   | Edit Delete_forwards ->
-     Buf.delete_forwards
+     delete_forwards
 
 let initial =
-  Buf.of_string
+  Buf.of_string ~height:25
     {|Text editor
 
 - Movement works

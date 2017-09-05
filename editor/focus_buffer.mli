@@ -22,6 +22,8 @@ module Make (A : Line_annotator.S) : sig
     ; spans : spans
     }
 
+  val empty_annotated_line : string annotated_line
+
   (**{2 Creation} *)
 
   (** [empty] is the empty buffer. *)
@@ -43,32 +45,31 @@ module Make (A : Line_annotator.S) : sig
 
   (** [move_up t] returns a buffer with the same content as [t], but
       with the point moved up by one line. If the point is already on
-      the first line, then the point is not moved. FIXME: document the
+      the first line, then [None] is returned. FIXME: document the
       column memory. *)
-  val move_up : t -> t
+  val move_up : t -> t option
 
   (** [move_down t] returns a buffer with the same content as [t], but
       with the point moved down by one line. If the point is already on
-      the last line of the buffer, then the point is moved to the end
-      of the line. FIXME: document the column memory. *)
-  val move_down : t -> t
+      the last line of the buffer, then [None] is returned. FIXME: document the
+      column memory. *)
+  val move_down : t -> t option
 
   (** [move_left t] returns a buffer with the same content as [t], but
       with the point moved one character to the left. If this means
-      going off the beginning of the current line, the point is moved
-      to the end of the previous line, if it exists. *)
-  val move_left : t -> t
+      going off the beginning of the current line, [None] is
+      returned. *)
+  val move_left : t -> t option
 
   (** [move_right t] returns a buffer with the same content as [t], but
       with the point moved one character to the right. If this means
-      going off the beginning of a line, the point is moved to the end of
-      the previous line, if it exists. *)
-  val move_right : t -> t
+      going off the beginning of a line, [None] is returned. *)
+  val move_right : t -> t option
 
   (** [move_start_of_line t] returns a buffer with the same content as
       [t], but with the point moved to the start of the current line. *)
   val move_start_of_line : t -> t
-  
+
   (** [move_end_of_line t] returns a buffer with the same content as
       [t], but with the point moved to the end of the current line. *)
   val move_end_of_line : t -> t
@@ -97,17 +98,25 @@ module Make (A : Line_annotator.S) : sig
   val insert_newline : t -> t
 
   (** [delete_backwards t] returns a buffer with the character before
-      the point removed. If the point is at the start of a line, then the
-      current line is joined with the previous one, and the point is
-      placed at the join. If the point is at the start of the buffer,
-      then the returned buffer is identical to [t]. *)
-  val delete_backwards : t -> t
+      the point removed. If the point is at the start of a line, then
+      [None] is returned. *)
+  val delete_backwards : t -> t option
 
-  (** [delete_forwards t] returns a buffer with the character after the
-      point removed. If the point is at the end of a line, then the
-      current line is joined with the next one, and the point is placed
-      at the join. If the point is at the end of the buffer, then the
-      returned buffer is identical to [t]. *)
-  val delete_forwards : t -> t
+  (** [delete_forwards t] returns a buffer with the character after
+      the point removed. If the point is at the end of a line, then
+      [None] is returned. *)
+  val delete_forwards : t -> t option
+
+  (** [join_up t] takes the line containing the current point and
+      joins it on to the end of the previous line, placing the point at
+      the join point. If there is no previous line, then [None] is
+      returned. *)
+  val join_up : t -> t option
+
+  (** [join_down t] takes the line containing the current point and
+      joins it on to start of the next line, placing the point at the
+      join point. If there is no next line, then [None] is
+      returned. *)
+  val join_down : t -> t option
 
 end
