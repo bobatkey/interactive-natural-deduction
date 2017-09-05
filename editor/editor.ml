@@ -104,13 +104,16 @@ let onkeydown modifiers key =
          Some (Movement End)
        else
          Some (Movement EndOfLine)
-    | Tab        -> Some (Edit (Insert 'X'))
-    | _          -> None
+    | Tab ->
+       (* FIXME: get the state at the start of the current line, and
+          indent to the appropriate amount *)
+       Some (Edit (Insert 'X'))
+    | _ -> None
 
 let onkeypress modifiers c =
   let open Ulmus.Dynamic_HTML in
   match modifiers, Uchar.to_char c with
-    | { alt = false; ctrl = false; meta = false}, c ->
+    | { alt = false; ctrl = false; meta = false}, c when Char.code c <= 127 && Char.code c >= 32 ->
        Some (Edit (Insert c))
     | { alt = false; ctrl = true; meta = false}, ('E' | 'e') ->
        Some (Movement EndOfLine)
