@@ -131,6 +131,8 @@ let line ?(current=false) num Buf.Buf.{line; spans} =
     begin
       if String.length line = 0 then
         text " "
+      else if (spans :> Focus_buffer.span list) = [] then
+        text line
       else
         fst @@
         List.fold_left
