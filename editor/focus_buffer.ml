@@ -42,9 +42,9 @@ struct
       in
       gather_spans [] 0 annot_arr.(0) 1
 
-  type annotated_line =
+  type 'a annotated_line =
     { state : A.state
-    ; line  : string
+    ; line  : 'a
     ; spans : spans
     }
 
@@ -53,7 +53,7 @@ struct
     let spans = spans_of_annots (String.length line) annots in
     { state; line; spans }, state'
 
-  let annotate_lines lines : annotated_line list =
+  let annotate_lines lines =
     let rec annotate accum state = function
       | [] ->
          List.rev accum
@@ -77,49 +77,53 @@ struct
     push_update [] new_state lines_after
 
   module AFL = struct
-    type t =
-      { state  : A.state
-      ; line   : Focus_line.t
-      ; annots : Line_annotator.annotation list
-      }
+    type t = Focus_line.t annotated_line
 
     let position {line} =
       Focus_line.position line
 
-    let content {state;line;annots} =
-      let line  = Focus_line.content line in
-      let spans = spans_of_annots (String.length line) annots in
-      { state; line; spans }
+    let content ({line} as t) =
+      { t with line = Focus_line.content line }
 
-    let content_with_cursor {state;line;annots} =
-      (* FIXME: only need to merge the 'cursor' span into the spans *)
-      let pos = Focus_line.position line in
-      let annots =
-        Line_annotator.
-        { annot_start = pos; annot_end = pos; annot_style = "cursor" }::annots
+    let merge_in_cursor pos spans =
+      let ( @:: ) span spans =
+        if span.span_len = 0 then spans else span::spans
       in
-      let line = Focus_line.content line in
-      let line = if String.length line = pos then line ^ " " else line in
-      let spans = spans_of_annots (String.length line) annots in
+      let rec loop i = function
+        | [] ->
+           [{ span_len = 1; span_styles = ["cursor"] }]
+        | ({ span_len; span_styles } as span)::spans ->
+           if pos < i + span_len then
+             let before = { span_len = pos - i; span_styles } in
+             let span   = { span_len = 1; span_styles = "cursor"::span_styles } in
+             let after  = { span_len = i + span_len - pos - 1; span_styles } in
+             before @:: span @:: after @:: spans
+           else
+             span :: loop (i+span_len) spans
+      in
+      loop 0 spans
+
+    let content_with_cursor {state;line;spans} =
+      let pos   = Focus_line.position line in
+      let line  = Focus_line.content line in
+      let line  = if String.length line = pos then line ^ " " else line in
+      let spans = merge_in_cursor pos spans in
       { state; line; spans }
 
     let empty state =
-      { state; line = Focus_line.empty; annots = [] }
+      { state; line = Focus_line.empty; spans = [] }
     
-    let of_annotated_line_at idx ({state;line} : annotated_line)  =
-      let state', annots = A.line line state in
-      let line           = Focus_line.of_string_at idx line in
-      { state; line; annots }
+    let of_annotated_line_at idx {state;line;spans}  =
+      let line = Focus_line.of_string_at idx line in
+      { state; line; spans }
 
-    let of_annotated_line_at_end ({state;line} : annotated_line)  =
-      let state', annots = A.line line state in
-      let line           = Focus_line.of_string_at_end line in
-      { state; line; annots }
+    let of_annotated_line_at_end {state;line;spans} =
+      let line = Focus_line.of_string_at_end line in
+      { state; line; spans }
 
-    let of_annotated_line_at_start ({state;line} : annotated_line)  =
-      let state', annots = A.line line state in
-      let line           = Focus_line.of_string_at_start line in
-      { state; line; annots }
+    let of_annotated_line_at_start {state;line;spans}  =
+      let line = Focus_line.of_string_at_start line in
+      { state; line; spans }
 
     (* Movement *)
     
@@ -140,10 +144,11 @@ struct
         | Some line -> Some { t with line }
 
     (* Editing *)
-    
+
     let annotate state line =
-      let state', annots = A.line (Focus_line.content line) state in
-      { state; line; annots }, state'
+      let l = Focus_line.content line in
+      let state', annots = A.line l state in
+      { state; line; spans = spans_of_annots (String.length l) annots }, state'
 
     let insert c {state;line} =
       annotate state (Focus_line.insert c line)
@@ -168,17 +173,17 @@ struct
         | Some line ->
            Some (annotate state line)
 
-    let join_start ({state;line=prefix} : annotated_line) {line} =
+    let join_start {state;line=prefix} {line} =
       annotate state (Focus_line.join_start prefix line)
 
-    let join_end {state;line} ({line=suffix} : annotated_line) =
+    let join_end {state;line} {line=suffix} =
       annotate state (Focus_line.join_end line suffix)
   end
 
   type t =
-    { lines_before : annotated_line list
+    { lines_before : string annotated_line list
     ; current_line : AFL.t
-    ; lines_after  : annotated_line list
+    ; lines_after  : string annotated_line list
     ; cursor_col   : int option
     }
 
@@ -187,12 +192,9 @@ struct
 
   let empty =
     { lines_before = []
-    ; current_line = AFL.{ state = A.initial
-                         ; line  = Focus_line.empty
-                         ; annots = []
-                         }
-    ; lines_after = []
-    ; cursor_col = None
+    ; current_line = AFL.empty A.initial
+    ; lines_after  = []
+    ; cursor_col   = None
     }
   
   let lines string =
@@ -306,12 +308,12 @@ struct
   let insert c ({current_line;lines_after} as t) =
     if c = '\n' then invalid_arg "Focus_buffer.insert";
     let current_line, state' = AFL.insert c current_line in
-    let lines_after          = push_update state' lines_after in
+    let lines_after = push_update state' lines_after in
     { t with current_line; lines_after; cursor_col = None }
 
   let insert_newline {lines_before;current_line;lines_after} =
     let new_line, current_line, state' = AFL.split current_line in
-    let lines_after                    = push_update state' lines_after in
+    let lines_after = push_update state' lines_after in
     { lines_before = new_line :: lines_before
     ; current_line
     ; lines_after

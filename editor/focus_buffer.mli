@@ -2,16 +2,12 @@
 
 (**{1 Focus Buffers} *)
 
-(**{2 Line annotators} *)
-
-(**{2 Annotated Focus Buffers} *)
-
 type span =
   { span_len    : int
   ; span_styles : string list
   }
 
-type spans = span list
+type spans = private span list
 
 module Make (A : Line_annotator.S) : sig
 
@@ -19,17 +15,17 @@ module Make (A : Line_annotator.S) : sig
       can occur. *)
   type t
 
-  
-  type annotated_line =
+  (** Annotated lines *)
+  type 'a annotated_line =
     { state : A.state
-    ; line  : string
+    ; line  : 'a
     ; spans : spans
     }
 
   (**{2 Creation} *)
 
+  (** [empty] is the empty buffer. *)
   val empty : t
-  
   
   (** [of_string str] creates a buffer with the contents [str], with
       the current point set to the start of the content. *)
@@ -40,7 +36,8 @@ module Make (A : Line_annotator.S) : sig
   (** [view buf] splits the buffer [t] into the lines before the
       current point (in reverse order), the line with the current point
       on, and the lines after the current point. *)
-  val view : t -> annotated_line list * annotated_line * annotated_line list
+  val view : t ->
+    string annotated_line list * string annotated_line * string annotated_line list
 
   (**{2 Movement} *)
 
