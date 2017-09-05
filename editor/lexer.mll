@@ -38,6 +38,7 @@ type token =
   | HASH_FST
   | HASH_SND
   | IDENT of string
+  | STRING of string
   | EOF
 
   | COMMENT
@@ -89,6 +90,7 @@ rule token = parse
 | "#fst"       { `Token, HASH_FST }
 | "#snd"       { `Token, HASH_SND }
 | id           { `Token, IDENT (Lexing.lexeme lexbuf) }
+| '\"'[^'\"']*'\"' { `Token, STRING (Lexing.lexeme lexbuf) }
 | "(*"         { `Comment 1, COMMENT }
 | eof          { `Token,     EOF }
 | _            { `Token,     INVALID }
@@ -130,6 +132,8 @@ let style_of_token = function
      "hl-identifier"
   | COMMENT ->
      "hl-comment"
+  | STRING _ ->
+     "hl-string"
   | INVALID ->
      "hl-invalid"
   | EOF ->
