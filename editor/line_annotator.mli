@@ -18,6 +18,10 @@ end
 
 module Null_annotator : S
 
+module Combine (A : S) (B : S) : S
+
+module Highlight_trailing_whitespace : S
+
 module type LEXER_LINE_ANNOTATOR = sig
   type lexer
 

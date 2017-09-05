@@ -1,5 +1,10 @@
+module Annotator =
+  Line_annotator.Combine
+    (Line_annotator.Highlight_trailing_whitespace)
+    (Line_annotator.Of_lexer (Lexer))
+
 module Buf =
-  Viewport_buffer.Make (Line_annotator.Of_lexer (Lexer))
+  Viewport_buffer.Make (Annotator)
 
 (* Higher-level motion and editing commands *)
 

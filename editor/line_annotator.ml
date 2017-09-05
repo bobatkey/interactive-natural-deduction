@@ -27,6 +27,45 @@ module Null_annotator = struct
   let line str () = (), []
 end
 
+module Combine (A : S) (B : S) = struct
+  type state = A.state * B.state
+  let equal_state (a1,b1) (a2,b2) =
+    A.equal_state a1 a2 && B.equal_state b1 b2
+  let initial = (A.initial, B.initial)
+  let line str (a,b) =
+    let a, a_annots = A.line str a in
+    let b, b_annots = B.line str b in
+    (a, b), a_annots @ b_annots
+end
+
+module Highlight_trailing_whitespace = struct
+  type state = unit
+  let equal_state () () = true
+  let initial = ()
+  let line str () =
+    let rec search_end i =
+      if i = 0 then 0
+      else match str.[i-1] with
+        | ' ' | '\t' -> search_end (i-1)
+        | _ -> i
+    in
+    let has_trailing_ws =
+      if String.length str = 0 then
+        []
+      else
+        let last_char = str.[String.length str - 1] in
+        if last_char = ' ' || last_char = '\t' then
+          let i = search_end (String.length str - 1) in
+          [ { annot_start = i
+            ; annot_end   = String.length str - 1
+            ; annot_style = "hl-invalid"
+            } ]
+        else
+          []
+    in
+    (), has_trailing_ws
+end
+
 module type LEXER_LINE_ANNOTATOR = sig
   type lexer
 
