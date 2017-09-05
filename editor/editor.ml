@@ -54,6 +54,10 @@ let onkeypress modifiers c =
   match modifiers, Uchar.to_char c with
     | { alt = false; ctrl = false; meta = false}, c ->
        Some (Edit (Insert c))
+    | { alt = false; ctrl = true; meta = false}, ('E' | 'e') ->
+       Some (Movement EndOfLine)
+    | { alt = false; ctrl = true; meta = false}, ('A' | 'a') ->
+       Some (Movement StartOfLine)
     | _ ->
        None
     | exception _ ->
