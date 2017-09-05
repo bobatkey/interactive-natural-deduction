@@ -41,6 +41,9 @@ module Make (A : Line_annotator.S) : sig
   val view : t ->
     string annotated_line list * string annotated_line * string annotated_line list
 
+  (** [text t] is the content of [t]. *)
+  val text : t -> string
+
   (**{2 Movement} *)
 
   (** [move_up t] returns a buffer with the same content as [t], but

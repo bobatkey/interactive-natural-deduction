@@ -188,6 +188,17 @@ struct
   let view { lines_before; current_line; lines_after } =
     lines_before, AFL.content_with_cursor current_line, lines_after
 
+  let text {lines_before; current_line; lines_after} =
+    let b = Buffer.create 8192 in
+    let add_line { line } =
+      Buffer.add_string b line;
+      Buffer.add_char b '\n'
+    in
+    List.iter add_line (List.rev lines_before);
+    add_line (AFL.content current_line);
+    List.iter add_line lines_after;
+    Buffer.contents b
+
   let empty =
     { lines_before = []
     ; current_line = AFL.empty A.initial
