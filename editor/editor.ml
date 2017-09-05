@@ -66,17 +66,20 @@ let line ?(current=false) num Buf.{line; spans} =
   pre ~attrs:[ A.class_ (if current then "line current-line" else "line")
              ; E.onclick (Movement (Offset num))
              ]
-    (if String.length line = 0 then
-       text " "
-     else
-       fst @@
-       List.fold_left (fun (doc, pos) Focus_buffer.{span_len; span_styles} ->
-           let str = String.sub line pos span_len in
-           (doc ^^
-            span ~attrs:[A.class_ (String.concat " " span_styles)] (text str),
-            pos+span_len))
-         (empty, 0)
-         spans)
+    begin
+      if String.length line = 0 then
+        text " "
+      else
+        fst @@
+        List.fold_left
+          (fun (doc, pos) Focus_buffer.{span_len; span_styles} ->
+             let str = String.sub line pos span_len in
+             (doc ^^
+              span ~attrs:[A.class_ (String.concat " " span_styles)] (text str),
+              pos+span_len))
+          (empty, 0)
+          (spans :> Focus_buffer.span list)
+    end
 
 let render buffer =
   let before, current, after = Buf.view buffer in
@@ -88,11 +91,17 @@ let render buffer =
            ; E.onkeydown onkeydown
            ]
     begin
-      snd (List.fold_left (fun (i,doc) content -> (i-1,line i content ^^ doc)) (-1,empty) before)
+      snd (List.fold_left
+             (fun (i,doc) content -> (i-1,line i content ^^ doc))
+             (-1,empty)
+             before)
       ^^
       line ~current:true 0 current
       ^^
-      snd (List.fold_left (fun (i,doc) content -> (i+1,doc ^^ line i content )) (1,empty) after)
+      snd (List.fold_left
+             (fun (i,doc) content -> (i+1,doc ^^ line i content ))
+             (1,empty)
+             after)
     end
 
 let update = function
