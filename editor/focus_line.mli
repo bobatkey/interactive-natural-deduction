@@ -32,6 +32,10 @@ val position : t -> int
     point. *)
 val content : t -> content
 
+(** [char_at_point t] returns the character at the current point in
+    [t]. If the point is at the end of the line, [None] is returned. *)
+val char_at_point : t -> char option
+
 (**{2 Movement} *)
 
 (** [move_start t] returns a line with the same content as [t], and

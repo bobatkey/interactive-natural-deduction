@@ -29,6 +29,12 @@ let position {pos} =
 let content {text} =
   text
 
+let char_at_point {text;pos} =
+  if pos = String.length text then
+    None
+  else
+    Some text.[pos]
+
 let move_end ({text} as t) =
   { t with pos = String.length text }
 
