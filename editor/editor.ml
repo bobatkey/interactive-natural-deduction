@@ -8,56 +8,29 @@ module Buf =
 
 (* Higher-level motion and editing commands *)
 
-let move_up buf =
-  match Buf.move_up buf with
-    | None ->
-       buf
-    | Some buf ->
-       buf
+let attempt f b =
+  match f b with None -> b | Some b -> b
 
-let move_down buf =
-  match Buf.move_down buf with
-    | None ->
-       Buf.move_end_of_line buf
-    | Some buf ->
-       buf
+let (|||) f g b =
+  match f b with None -> g b | Some b -> Some b
 
-let move_left buf =
-  match Buf.move_left buf with
-    | None ->
-       (match Buf.move_up buf with
-         | None     -> buf
-         | Some buf -> Buf.move_end_of_line buf)
-    | Some buf -> buf
+let (>>) f g b =
+  match f b with None -> None | Some b -> g b
 
-let move_right buf =
-  match Buf.move_right buf with
-    | None ->
-       (match Buf.move_down buf with
-         | None     -> buf
-         | Some buf -> Buf.move_start_of_line buf)
-    | Some buf ->
-       buf
+let pure f b = Some (f b)
 
-let delete_backwards buf =
-  match Buf.delete_backwards buf with
-    | None ->
-       (match Buf.join_up buf with
-         | None -> buf
-         | Some buf -> buf)
-    | Some buf ->
-       buf
-
-let delete_forwards buf =
-  match Buf.delete_forwards buf with
-    | None ->
-       (match Buf.join_down buf with
-         | None -> buf
-         | Some buf -> buf)
-    | Some buf ->
-       buf
-
-
+let move_up =
+  attempt Buf.move_up
+let move_down =
+  attempt (Buf.move_down ||| pure Buf.move_end_of_line)
+let move_left =
+  attempt (Buf.move_left ||| (Buf.move_up >> pure Buf.move_end_of_line))
+let move_right =
+  attempt (Buf.move_right ||| (Buf.move_down >> pure Buf.move_start_of_line))
+let delete_backwards =
+  attempt (Buf.delete_backwards ||| Buf.join_up)
+let delete_forwards =
+  attempt (Buf.delete_forwards ||| Buf.join_down)
 
 type state =
   Buf.t
