@@ -32,7 +32,7 @@ module Make (A : Line_annotator.S) = struct
          None
       | Some buffer ->
          let offset = if offset > 0 then offset - 1 else offset in
-         Some {t with buffer; offset}
+         Some { t with buffer; offset }
 
   let move_down ({offset;buffer;height} as t) =
     match Buf.move_down buffer with
@@ -40,7 +40,7 @@ module Make (A : Line_annotator.S) = struct
          None
       | Some buffer ->
          let offset = if offset < height - 1 then offset + 1 else offset in
-         Some {t with buffer; offset}
+         Some { t with buffer; offset }
 
   let move_start_of_line ({buffer} as t) =
     {t with buffer = Buf.move_start_of_line buffer}
@@ -58,12 +58,12 @@ module Make (A : Line_annotator.S) = struct
 
   let move_start ({buffer} as t) =
     let buffer = Buf.move_start buffer in
-    {t with buffer; offset = 0}
+    { t with buffer; offset = 0 }
 
-  let move_end ({buffer} as t) =
+  let move_end ({buffer;height} as t) =
     let buffer = Buf.move_end buffer in
-    (* FIXME: work out a suitable offset *)
-    {t with buffer; offset = 0}
+    let offset = min (height-1) (Buf.num_lines buffer - 1) in
+    { t with buffer; offset }
 
   let insert c ({buffer} as t) =
     {t with buffer = Buf.insert c buffer}
@@ -78,9 +78,11 @@ module Make (A : Line_annotator.S) = struct
 
   let join_up ({buffer; offset} as t) =
     match Buf.join_up buffer with
-      | None -> None
+      | None ->
+         None
       | Some buffer ->
-         Some {t with buffer; offset = offset - 1 }
+         let offset = if offset > 0 then offset - 1 else offset in
+         Some { t with buffer; offset }
 
   let join_down = map_buffer Buf.join_down  
 

@@ -44,6 +44,10 @@ module Make (A : Line_annotator.S) : sig
   (** [text t] is the content of [t]. *)
   val text : t -> string
 
+  (** [num_lines t] is the number of lines in the content of
+      [t]. FIXME: document how empty content works. *)
+  val num_lines : t -> int
+
   (**{2 Movement} *)
 
   (** [move_up t] returns a buffer with the same content as [t], but
