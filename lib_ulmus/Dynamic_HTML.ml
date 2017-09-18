@@ -11,7 +11,7 @@ end
 type attributes = string String.Map.t
 
 type +'action event =
-  | Event : ('e #Dom.event Js.t as 'b) Dom.Event.typ
+  | Event : (#Dom_html.event Js.t as 'b) Dom.Event.typ
             * (Dom_html.element Js.t -> 'b -> 'action option)
     -> 'action event
 
@@ -37,7 +37,7 @@ type 'a html = 'a t
 type 'action attribute =
   | A_Nothing
   | A_Simple of string * string
-  | A_Event  : ('a #Dom.event Js.t as 'b) Dom.Event.typ
+  | A_Event  : (#Dom_html.event Js.t as 'b) Dom.Event.typ
                * (Dom_html.element Js.t -> 'b -> 'action option)
     -> 'action attribute
 
@@ -434,14 +434,21 @@ let rec node_of_tree = function
   | Text_existing (node, _)        -> (node :> Dom.node Js.t)
   | Dummy tree                     -> node_of_tree tree
 
-let add_handler h node = function
+let add_handler h (node : Dom_html.element Js.t) = function
   | Event (typ, func) ->
-     let handler = Dom.handler (fun ev ->
-         match func node ev with
-           | None -> Js._true
-           | Some action -> h action)
+     let handler ev =
+       match func node ev with
+         | None -> Js._true
+         | Some action ->
+            Dom_html.stopPropagation ev;
+            h action
      in
-     Dom.addEventListener node typ handler Js._false
+     let handler = Dom_html.handler handler in
+     (* The Js._false here means that we capture in the bubbling phase
+        (inner to outer). Combined with the 'stopPropagation' above,
+        this means that events are handled by the most specific
+        handler. *)
+     Dom_html.addEventListener node typ handler Js._false
 
 let rec create_node : 'a. ('a -> bool Js.t) -> Dom_html.element Js.t option -> 'a node -> tree =
   fun h parent new_tree -> match new_tree with
