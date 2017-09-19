@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en_GB">
+  <head>
+    <meta charset="UTF-8">
+    <title>Evaluation Game</title>
+    <style>
+      body { font-family: "monospace", "inconsolata" }
+      /*.term,.rules { font-family: Inconsolata }*/
+      span.constructor { color: red }
+      span.definition  { color: green }
+      .weerighter { width: 100%;  }
+      .rules { width: 25%; position: fixed;  }
+      .terms { width: 75%; display: flex; flex-direction: column; margin-left: 27.5%}
+      .termblock { border: dashed 1px #a0a0a0; border-radius: 10px; margin-bottom: 1em  }
+      .termdisplay { display: flex; height: 4.5em; align-items: center; justify-content: space-between }
+      span.term { margin-left: 6px; margin-right: 1px; display: inline-flex; align-items: center; }
+      .termdisplay span.term { margin-top: 1px; margin-bottom: 1px; padding-top: 2px; padding-bottom: 2px }
+      span.active {cursor: pointer }
+      span.term:first-child { margin-left: 1px; margin-right: 6px }
+      span.active:hover { border: 1px solid #999; margin: 0px; margin-left: 5px; border-radius: 4px }
+      span.active:hover:first-child { margin-left: 0px; margin-right: 5px }
+      .rule { padding: 4px; cursor: pointer; border-radius: 4px }
+      .rule:hover { background-color: #aaa }
+      .selected { background-color: #ddd }
+      .selected:hover { background-color: #ddd }
+    </style>
+  </head>
+  <body>
+    <h1>Evaluation Game</h1>
+
+    <div id="terms"></div>
+
+    <script src="terms.js"></script>
+  </body>
+</html>
