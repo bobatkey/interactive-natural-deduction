@@ -16,7 +16,7 @@ module Make (A : Line_annotator.S) : sig
   type t
 
   (** Annotated lines *)
-  type 'a annotated_line =
+  type 'a annotated_line = private
     { state : A.state
     ; line  : 'a
     ; spans : spans

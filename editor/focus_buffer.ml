@@ -5,6 +5,73 @@ type span =
 
 type spans = span list
 
+let spans_of_annots len annots =
+  if len = 0 then
+    []
+  else
+    let module StyleSet = Set.Make (String) in
+    let annot_arr = Array.make len StyleSet.empty in
+    annots |> List.iter begin
+      fun Line_annotator.{annot_start; annot_end; annot_style} ->
+        for i = annot_start to annot_end do
+          if i >= 0 && i < len then
+            annot_arr.(i) <- StyleSet.add annot_style annot_arr.(i)
+        done
+    end;
+    let rec gather_spans spans i styles j =
+      if j = len then
+        let span =
+          { span_len    = j-i
+          ; span_styles = StyleSet.elements styles
+          }
+        in
+        List.rev (span::spans)
+      else
+        let styles' = annot_arr.(j) in
+        if StyleSet.equal styles styles' then
+          gather_spans spans i styles (j+1)
+        else
+          let span =
+            { span_len    = j-i
+            ; span_styles = StyleSet.elements styles
+            }
+          in
+          gather_spans (span::spans) j styles' (j+1)
+    in
+    gather_spans [] 0 annot_arr.(0) 1
+
+let merge_in_cursor pos spans =
+  let ( @:: ) span spans =
+    if span.span_len = 0 then spans else span::spans
+  in
+  let rec loop i = function
+    | [] ->
+       [{ span_len = 1; span_styles = ["cursor"] }]
+    | ({ span_len; span_styles } as span)::spans ->
+       if pos < i + span_len then
+         let before = { span_len = pos - i; span_styles } in
+         let span   = { span_len = 1; span_styles = "cursor"::span_styles } in
+         let after  = { span_len = i + span_len - pos - 1; span_styles } in
+         before @:: span @:: after @:: spans
+       else
+         span :: loop (i+span_len) spans
+  in
+  loop 0 spans
+
+
+
+(* Plan: every line has its summary information computed, and it is
+   possible to query the whole buffer for the combined data. *)
+module type MONOID_ANNOTATION = sig
+  type t
+
+  val empty : t
+
+  val combine : t -> t -> t
+
+  val of_line : content:string -> lnum:int -> t
+end
+
 module Make (A : Line_annotator.S) =
 struct
 
@@ -20,41 +87,6 @@ struct
     ; line  = ""
     ; spans = []
     }
-
-  let spans_of_annots len annots =
-    if len = 0 then
-      []
-    else
-      let module StyleSet = Set.Make (String) in
-      let annot_arr = Array.make len StyleSet.empty in
-      annots |> List.iter begin
-        fun Line_annotator.{annot_start; annot_end; annot_style} ->
-          for i = annot_start to annot_end do
-            if i >= 0 && i < len then
-              annot_arr.(i) <- StyleSet.add annot_style annot_arr.(i)
-          done
-      end;
-      let rec gather_spans spans i styles j =
-        if j = len then
-          let span =
-            { span_len    = j-i
-            ; span_styles = StyleSet.elements styles
-            }
-          in
-          List.rev (span::spans)
-        else
-          let styles' = annot_arr.(j) in
-          if StyleSet.equal styles styles' then
-            gather_spans spans i styles (j+1)
-          else
-            let span =
-              { span_len    = j-i
-              ; span_styles = StyleSet.elements styles
-              }
-            in
-            gather_spans (span::spans) j styles' (j+1)
-      in
-      gather_spans [] 0 annot_arr.(0) 1
 
   let annotate_line state line =
     let state', annots = A.line line state in
@@ -82,24 +114,6 @@ struct
 
     let content ({line} as t) =
       { t with line = Focus_line.content line }
-
-    let merge_in_cursor pos spans =
-      let ( @:: ) span spans =
-        if span.span_len = 0 then spans else span::spans
-      in
-      let rec loop i = function
-        | [] ->
-           [{ span_len = 1; span_styles = ["cursor"] }]
-        | ({ span_len; span_styles } as span)::spans ->
-           if pos < i + span_len then
-             let before = { span_len = pos - i; span_styles } in
-             let span   = { span_len = 1; span_styles = "cursor"::span_styles } in
-             let after  = { span_len = i + span_len - pos - 1; span_styles } in
-             before @:: span @:: after @:: spans
-           else
-             span :: loop (i+span_len) spans
-      in
-      loop 0 spans
 
     let content_with_cursor {state;line;spans} =
       let pos   = Focus_line.position line in
