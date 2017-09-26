@@ -1,4 +1,46 @@
-module Make (A : Line_annotator.S) = struct
+module Make (A : Line_annotator.S) : sig
+  type t
+
+  module Buf : sig
+    type 'a annotated_line = private
+      { state : A.state
+      ; line  : 'a
+      ; spans : Focus_buffer.Spans.t
+      }
+  end
+
+  val view : t -> string Buf.annotated_line list * string Buf.annotated_line * string Buf.annotated_line list
+
+  val of_string : height:int -> string -> t
+
+  val move_start : t -> t
+
+  val move_end : t -> t
+
+  val move_up : t -> t option
+
+  val move_down : t -> t option
+
+  val move_left : t -> t option
+
+  val move_right : t -> t option
+
+  val move_end_of_line : t -> t
+
+  val move_start_of_line : t -> t
+
+  val insert : char -> t -> t
+
+  val insert_newline : t -> t
+
+  val delete_backwards : t -> t option
+
+  val delete_forwards : t -> t option
+
+  val join_up : t -> t option
+
+  val join_down : t -> t option
+end = struct
   module Buf = Focus_buffer.Make (A)
 
   type t =
@@ -52,7 +94,7 @@ module Make (A : Line_annotator.S) = struct
     match f buffer with
       | None -> None
       | Some buffer -> Some {t with buffer}
-  
+
   let move_left = map_buffer Buf.move_left
   let move_right = map_buffer Buf.move_right
 
@@ -84,6 +126,6 @@ module Make (A : Line_annotator.S) = struct
          let offset = if offset > 0 then offset - 1 else offset in
          Some { t with buffer; offset }
 
-  let join_down = map_buffer Buf.join_down  
+  let join_down = map_buffer Buf.join_down
 
 end
