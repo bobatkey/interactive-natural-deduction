@@ -468,6 +468,24 @@ end = struct
       | [] -> buf.focus
       | _  -> invalid_arg "Dynamic_HTML.buffer.content: unclosed tags"
 end
+
+(* Incremental ideas:
+
+   - `'a incr` is some incremental computation, depending on other computations
+   - Combinators (general purpose):
+     - pure  : 'a -> 'a incr       -- unchanging thing
+     - map   : ('a -> 'b) -> 'a incr -> 'b incr
+     - apply : ('a -> 'b) incr -> 'a incr -> 'b incr
+
+   - Maps (or any kind of keyed collection)
+     - iter : ('a, 'b) map incr -> ('a -> 'b -> 'c incr) -> 'c list incr
+
+   - HTML
+     - text : string incr -> html
+     - (^^) : html -> html -> html
+     - tag  : string incr -> html -> html
+*)
+
 type tree =
   | El_existing of
       { node       : Dom_html.element Js.t
