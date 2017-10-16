@@ -419,6 +419,55 @@ module E = struct
          Some (f (Js.to_string s)))
 end
 
+module Buffer : sig
+  type 'a t
+
+  val create : unit -> 'a t
+
+  val open_tag : 'a t -> ('a html -> 'a html) -> unit
+
+  val close_tag : 'a t -> unit
+
+  val text : 'a t -> string -> unit
+
+  val html : 'a t -> 'a html -> unit
+end = struct
+  type 'a context =
+    { before  : 'a html
+    ; current : ('a html -> 'a html)
+    }
+
+  type 'a t =
+    { mutable stack : 'a context list
+    ; mutable focus : 'a html
+    }
+
+  let create () =
+    { stack = []; focus = empty }
+
+  let open_tag buf f =
+    buf.stack <- { before = buf.focus; current = f } :: buf.stack;
+    buf.focus <- empty
+
+  let close_tag buf =
+    match buf.stack with
+      | { before; current } :: rest ->
+         buf.stack <- rest;
+         buf.focus <- before ^^ current buf.focus
+      | [] ->
+         invalid_arg "Dynamic_HTML.Buffer.close_tag: empty stack"
+
+  let html buf html =
+    buf.focus <- buf.focus ^^ html
+
+  let text buf t =
+    buf.focus <- buf.focus ^^ text t
+
+  let content buf =
+    match buf.stack with
+      | [] -> buf.focus
+      | _  -> invalid_arg "Dynamic_HTML.buffer.content: unclosed tags"
+end
 type tree =
   | El_existing of
       { node       : Dom_html.element Js.t
