@@ -9,6 +9,12 @@ module type S = sig
   val initial : state
 end
 
+type impossible = { impossible : 'a. 'a }
+
 type t = (module S)
+
+val fixed : impossible Dynamic_HTML.t -> t
+
+val (^^) : t -> t -> t
 
 val attach : parent_id:string -> t -> unit
