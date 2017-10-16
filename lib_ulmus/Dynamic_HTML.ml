@@ -18,8 +18,11 @@ type +'action event =
 type +'action events = 'action event list
 
 type +'action node =
-  | Map : ('inner_action -> 'action) * 'inner_action node   -> 'action node
-  | El   : string * attributes * 'action events * 'action t -> 'action node
+  | Map  : ('inner_action -> 'action) * 'inner_action node  -> 'action node
+  | El   : { tag        : string
+           ; attributes : attributes
+           ; handlers   : 'action events
+           ; children   : 'action t } -> 'action node
   | Text : string                                           -> 'action node
 and 'action t =
   'action node list
@@ -83,21 +86,21 @@ let attributes_and_handlers list =
   (attributes, List.rev handlers)
 
 (**********************************************************************)
-let normal_element name ?(attrs=[]) children =
+let normal_element tag ?(attrs=[]) children =
   let attributes, handlers = attributes_and_handlers attrs in
-  [El (name, attributes, handlers, children)]
+  [El {tag; attributes; handlers; children}]
 
-let escapable_raw_text_element name ?(attrs=[]) text =
+let escapable_raw_text_element tag ?(attrs=[]) text =
   let attributes, handlers = attributes_and_handlers attrs in
-  [El (name, attributes, handlers, [Text text])]
+  [El {tag; attributes; handlers; children=[Text text]}]
 
-let raw_text_element name ?(attrs=[]) text =
+let raw_text_element tag ?(attrs=[]) text =
   let attributes, handlers = attributes_and_handlers attrs in
-  [El (name, attributes, handlers, [Text text])]
+  [El {tag; attributes; handlers; children=[Text text]}]
 
-let void_element name ?(attrs=[]) () =
+let void_element tag ?(attrs=[]) () =
   let attributes, handlers = attributes_and_handlers attrs in
-  [El (name, attributes, handlers, [])]
+  [El {tag; attributes; handlers; children=[]}]
 
 let text text =
   [Text text]
@@ -417,22 +420,23 @@ module E = struct
 end
 
 type tree =
-  | El_existing
-    : Dom_html.element Js.t
-      * string
-      * attributes
-      * Dom.event_listener_id list
-      * tree list
-    -> tree
-  | Text_existing : Dom.text Js.t * string -> tree
-  | Dummy         : tree -> tree
+  | El_existing of
+      { node       : Dom_html.element Js.t
+      ; tag        : string
+      ; attributes : attributes
+      ; listeners  : Dom.event_listener_id list
+      ; children   : tree list
+      }
+  | Text_existing of
+      { node : Dom.text Js.t
+      ; text : string
+      }
 and realised_tree =
   tree list
 
 let rec node_of_tree = function
-  | El_existing (node, _, _, _, _) -> (node :> Dom.node Js.t)
-  | Text_existing (node, _)        -> (node :> Dom.node Js.t)
-  | Dummy tree                     -> node_of_tree tree
+  | El_existing {node}   -> (node :> Dom.node Js.t)
+  | Text_existing {node} -> (node :> Dom.node Js.t)
 
 let add_handler h (node : Dom_html.element Js.t) = function
   | Event (typ, func) ->
@@ -453,24 +457,24 @@ let add_handler h (node : Dom_html.element Js.t) = function
 let rec create_node : 'a. ('a -> bool Js.t) -> Dom_html.element Js.t option -> 'a node -> tree =
   fun h parent new_tree -> match new_tree with
     | Map (f, child) ->
-       Dummy (create_node (h <.> f) parent child)
+       create_node (h <.> f) parent child
 
-    | El (tag, attrs, events, children) ->
+    | El {tag; attributes; handlers; children} ->
        let node = Dom_html.document##createElement (!$tag) in
-       attrs |> String.Map.iter begin fun attr value ->
+       attributes |> String.Map.iter begin fun attr value ->
          node##setAttribute (!$attr) (!$value)
        end;
-       let handler_ids = List.map (add_handler h node) events in
+       let listeners = List.map (add_handler h node) handlers in
        let children = create h (Some node) children in
        (match parent with
          | None -> () | Some parent -> Dom.appendChild parent node);
-       El_existing (node, tag, attrs, handler_ids, children)
+       El_existing {node; tag; attributes; listeners; children}
 
     | Text text ->
        let node = Dom_html.document##createTextNode (!$text) in
        (match parent with
          | None -> () | Some parent -> Dom.appendChild parent node);
-       Text_existing (node, text)
+       Text_existing {node; text}
 
 and create : 'a. handler:('a -> bool Js.t) -> parent:Dom_html.element Js.t option -> 'a t -> tree list =
   fun ~handler ~parent -> List.map (create_node handler parent)
@@ -509,26 +513,27 @@ let set_input_props node attrs =
 let rec update_tree : 'a. ('a -> bool Js.t) -> Dom_html.element Js.t -> tree -> 'a node -> tree =
   fun h parent existing_tree new_tree ->
     match existing_tree, new_tree with
-      | Dummy existing, new_tree ->
-         update_tree h parent existing new_tree
-
       | existing, Map (f, new_tree) ->
          update_tree (h <.> f) parent existing new_tree
 
-      | El_existing (node, tag1, attrs1, handler_ids, children1), El (tag2, attrs2, events, children2) when tag1 = tag2 ->
-         List.iter Dom.removeEventListener handler_ids;
-         set_input_props node attrs2;
-         update_attrs node attrs1 attrs2;
-         let handler_ids = List.map (add_handler h node) events in
-         let children    = update h node children1 children2 in
-         El_existing (node, tag2, attrs2, handler_ids, children)
+      | El_existing existing, El proposed when existing.tag = proposed.tag ->
+         List.iter Dom.removeEventListener existing.listeners;
+         set_input_props existing.node proposed.attributes;
+         update_attrs existing.node existing.attributes proposed.attributes;
+         let listeners = List.map (add_handler h existing.node) proposed.handlers in
+         let children  = update h existing.node existing.children proposed.children in
+         El_existing { existing
+                       with attributes = proposed.attributes
+                          ; listeners
+                          ; children
+                     }
 
-      | Text_existing (node, text1), Text text2 when text1 == text2 || text1 = text2 ->
+      | Text_existing existing, Text text when existing.text == text || existing.text = text ->
          existing_tree
 
-      | Text_existing (node, text1), Text text2 ->
-         node##.data := !$text2;
-         Text_existing (node, text2)
+      | Text_existing existing, Text text ->
+         existing.node##.data := !$text;
+         Text_existing { existing with text }
 
       | existing_tree, new_tree ->
          let tree = create_node h None new_tree in
