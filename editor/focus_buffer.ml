@@ -1,63 +1,81 @@
-type span =
-  { span_len    : int
-  ; span_styles : string list
-  }
+module Spans : sig
+  type span =
+    { span_len    : int
+    ; span_styles : string list
+    }
 
-type spans = span list
+  type t = private span list
 
-let spans_of_annots len annots =
-  if len = 0 then
-    []
-  else
-    let module StyleSet = Set.Make (String) in
-    let annot_arr = Array.make len StyleSet.empty in
-    annots |> List.iter begin
-      fun Line_annotator.{annot_start; annot_end; annot_style} ->
-        for i = annot_start to annot_end do
-          if i >= 0 && i < len then
-            annot_arr.(i) <- StyleSet.add annot_style annot_arr.(i)
-        done
-    end;
-    let rec gather_spans spans i styles j =
-      if j = len then
-        let span =
-          { span_len    = j-i
-          ; span_styles = StyleSet.elements styles
-          }
-        in
-        List.rev (span::spans)
-      else
-        let styles' = annot_arr.(j) in
-        if StyleSet.equal styles styles' then
-          gather_spans spans i styles (j+1)
-        else
+  val empty : t
+  val is_empty : t -> bool
+  val of_annots : int -> Line_annotator.annotation list -> t
+  val merge_in_cursor : int -> t -> t
+end = struct
+
+  type span =
+    { span_len    : int
+    ; span_styles : string list
+    }
+
+  type t = span list
+
+  let empty = []
+
+  let is_empty = function [] -> true | _::_ -> false
+  
+  let of_annots len annots =
+    if len = 0 then
+      []
+    else
+      let module StyleSet = Set.Make (String) in
+      let annot_arr = Array.make len StyleSet.empty in
+      annots |> List.iter begin
+        fun Line_annotator.{annot_start; annot_end; annot_style} ->
+          for i = annot_start to annot_end do
+            if i >= 0 && i < len then
+              annot_arr.(i) <- StyleSet.add annot_style annot_arr.(i)
+          done
+      end;
+      let rec gather_spans spans i styles j =
+        if j = len then
           let span =
             { span_len    = j-i
             ; span_styles = StyleSet.elements styles
             }
           in
-          gather_spans (span::spans) j styles' (j+1)
+          List.rev (span::spans)
+        else
+          let styles' = annot_arr.(j) in
+          if StyleSet.equal styles styles' then
+            gather_spans spans i styles (j+1)
+          else
+            let span =
+              { span_len    = j-i
+              ; span_styles = StyleSet.elements styles
+              }
+            in
+            gather_spans (span::spans) j styles' (j+1)
+      in
+      gather_spans [] 0 annot_arr.(0) 1
+
+  let merge_in_cursor pos spans =
+    let ( @:: ) span spans =
+      if span.span_len = 0 then spans else span::spans
     in
-    gather_spans [] 0 annot_arr.(0) 1
-
-let merge_in_cursor pos spans =
-  let ( @:: ) span spans =
-    if span.span_len = 0 then spans else span::spans
-  in
-  let rec loop i = function
-    | [] ->
-       [{ span_len = 1; span_styles = ["cursor"] }]
-    | ({ span_len; span_styles } as span)::spans ->
-       if pos < i + span_len then
-         let before = { span_len = pos - i; span_styles } in
-         let span   = { span_len = 1; span_styles = "cursor"::span_styles } in
-         let after  = { span_len = i + span_len - pos - 1; span_styles } in
-         before @:: span @:: after @:: spans
-       else
-         span :: loop (i+span_len) spans
-  in
-  loop 0 spans
-
+    let rec loop i = function
+      | [] ->
+         [{ span_len = 1; span_styles = ["cursor"] }]
+      | ({ span_len; span_styles } as span)::spans ->
+         if pos < i + span_len then
+           let before = { span_len = pos - i; span_styles } in
+           let span   = { span_len = 1; span_styles = "cursor"::span_styles } in
+           let after  = { span_len = i + span_len - pos - 1; span_styles } in
+           before @:: span @:: after @:: spans
+         else
+           span :: loop (i+span_len) spans
+    in
+    loop 0 spans
+end
 
 
 (* Plan: every line has its summary information computed, and it is
@@ -78,19 +96,19 @@ struct
   type 'a annotated_line =
     { state : A.state
     ; line  : 'a
-    ; spans : spans
+    ; spans : Spans.t
     }
 
   let empty_annotated_line =
     (* FIXME: not sure about the state thing here *)
     { state = A.initial
     ; line  = ""
-    ; spans = []
+    ; spans = Spans.empty
     }
 
   let annotate_line state line =
     let state', annots = A.line line state in
-    let spans = spans_of_annots (String.length line) annots in
+    let spans = Spans.of_annots (String.length line) annots in
     { state; line; spans }, state'
 
   let push_update new_state lines_after =
@@ -119,11 +137,11 @@ struct
       let pos   = Focus_line.position line in
       let line  = Focus_line.content line in
       let line  = if String.length line = pos then line ^ " " else line in
-      let spans = merge_in_cursor pos spans in
+      let spans = Spans.merge_in_cursor pos spans in
       { state; line; spans }
 
     let empty state =
-      { state; line = Focus_line.empty; spans = [] }
+      { state; line = Focus_line.empty; spans = Spans.empty }
     
     let of_annotated_line_at idx {state;line;spans}  =
       let line = Focus_line.of_string_at idx line in
@@ -160,7 +178,7 @@ struct
     let annotate state line =
       let l = Focus_line.content line in
       let state', annots = A.line l state in
-      { state; line; spans = spans_of_annots (String.length l) annots }, state'
+      { state; line; spans = Spans.of_annots (String.length l) annots }, state'
 
     let insert c {state;line} =
       annotate state (Focus_line.insert c line)
@@ -192,6 +210,11 @@ struct
       annotate state (Focus_line.join_end line suffix)
   end
 
+  type selection =
+    { line_offset   : int
+    ; line_mark_pos : int
+    }
+
   type t =
     { lines_before : string annotated_line list
     ; current_line : AFL.t
@@ -199,6 +222,21 @@ struct
     ; cursor_col   : int option
     ; num_lines    : int
     }
+
+  (* Selections:
+     - Keep the point where it is.
+     - When selection is active, also store:
+       - line offset
+       - point offset
+       - problem, if we store relative to the point then we need to 
+     - When viewing, rewrite the annotations on the affected lines (lazily?)
+     - Movement just affects the point
+     - New operations:
+       - set_mark (to point)
+       - unset_mark
+       - get_region
+       - set_region
+  *)
 
   let view { lines_before; current_line; lines_after } =
     lines_before, AFL.content_with_cursor current_line, lines_after

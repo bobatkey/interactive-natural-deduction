@@ -32,6 +32,8 @@ let delete_backwards =
 let delete_forwards =
   attempt (Buf.delete_forwards ||| Buf.join_down)
 
+(**********************************************************************)
+
 type state =
   Buf.t
 
@@ -107,18 +109,18 @@ let line ?(current=false) num Buf.Buf.{line; spans} =
     begin
       if String.length line = 0 then
         text " "
-      else if (spans :> Focus_buffer.span list) = [] then
+      else if Focus_buffer.Spans.is_empty spans then
         text line
       else
         fst @@
         List.fold_left
-          (fun (doc, pos) Focus_buffer.{span_len; span_styles} ->
+          (fun (doc, pos) Focus_buffer.Spans.{span_len; span_styles} ->
              let str = String.sub line pos span_len in
              (doc ^^
               span ~attrs:[A.class_ (String.concat " " span_styles)] (text str),
               pos+span_len))
           (empty, 0)
-          (spans :> Focus_buffer.span list)
+          (spans :> Focus_buffer.Spans.span list)
     end
 
 let render buffer =

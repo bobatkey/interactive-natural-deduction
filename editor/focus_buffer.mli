@@ -2,12 +2,17 @@
 
 (**{1 Focus Buffers} *)
 
-type span =
-  { span_len    : int
-  ; span_styles : string list
-  }
+module Spans : sig
+  type span =
+    { span_len    : int
+    ; span_styles : string list
+    }
 
-type spans = private span list
+  type t = private span list
+
+  val is_empty : t -> bool
+end
+
 
 module Make (A : Line_annotator.S) : sig
 
@@ -19,7 +24,7 @@ module Make (A : Line_annotator.S) : sig
   type 'a annotated_line = private
     { state : A.state
     ; line  : 'a
-    ; spans : spans
+    ; spans : Spans.t
     }
 
   val empty_annotated_line : string annotated_line
