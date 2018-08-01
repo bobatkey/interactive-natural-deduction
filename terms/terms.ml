@@ -2,8 +2,9 @@ open Ulmus.Std
 
 type head =
   | Def of string | Con of string | Var of string
+  | Lambda of string * term
 
-type term =
+and term =
   { head : head
   ; args : term list
   }
@@ -81,6 +82,9 @@ let arithmetic_rule = function
 
 module VarMap = Map.Make (String)
 
+(* FIXME: this should also recurse into lambdas, after doing renaming
+   on their bound vars. *)
+
 let rec inst_rhs subst ({head;args} as tm) =
   let args = List.map (inst_rhs subst) args in
   match head with
@@ -89,10 +93,23 @@ let rec inst_rhs subst ({head;args} as tm) =
          | exception Not_found ->
             (* Shouldn't happen if all the rules are well formed *)
             tm
-         | {head; args=pre_args} ->
+         | {head; args = pre_args} ->
             {head; args = pre_args @ args})
+    | Lambda (var, tm) ->
+       { head = Lambda (var, inst_rhs subst tm)
+       ; args }
     | _ ->
        {tm with args}
+
+let beta_rule = function
+  | { head = Lambda (var_x, body); args = arg1 :: rest_args } ->
+     (* FIXME: substitute arg1 into body, with capture avoiding
+        substitution *)
+     let subst = VarMap.singleton var_x arg1 in
+     let { head; args } = inst_rhs subst body in
+     Some { head; args = args @ rest_args }
+  | _ ->
+     None
 
 let get_int (subst : term VarMap.t) x =
   match VarMap.find x subst with
@@ -145,6 +162,7 @@ let rec match_arg_patterns subst args pats =
 
 type gen_rule =
   | Arithmetic
+  | Beta
   | Rewrite of rule
 
 let apply_rule (rule : gen_rule) (term : term) =
@@ -162,6 +180,8 @@ let apply_rule (rule : gen_rule) (term : term) =
               None)
     | Arithmetic ->
        arithmetic_rule term
+    | Beta ->
+       beta_rule term
 
 let apply_at_point rule point =
   match apply_rule rule point.focus with
@@ -180,15 +200,52 @@ let var_ nm args = { head = Var nm; args }
 let def nm args = { head = Def nm; args }
 let con nm args = { head = Con nm; args }
 
+let lam x tm = { head = Lambda (x, tm); args = [] }
+
 let rules =
-  [| Arithmetic
+  [| `R Arithmetic
+   ; `R Beta
+   ; `D
+   ; `R (Rewrite { head = "iterNat"; pats = [ PVar "zero"; PVar "succ"; PCon ("Zero", []) ]
+                 ; guard = None
+                 ; rhs = var "zero" })
+   ; `R (Rewrite { head = "iterNat"; pats = [ PVar "zero"; PVar "succ"; PCon ("Succ", [PVar "n"]) ]
+                 ; guard = None
+                 ; rhs = var_ "succ" [ def "iterNat" [ var "zero"; var "succ"; var "n" ] ]
+                 })
+   ; `D
+   ; `R (Rewrite { head = "caseNat"; pats = [ PVar "zero"; PVar "succ"; PCon ("Zero", []) ]
+                 ; guard = None
+                 ; rhs = var "zero" })
+   ; `R (Rewrite { head = "caseNat"; pats = [ PVar "zero"; PVar "succ"; PCon ("Succ", [PVar "n"]) ]
+                 ; guard = None
+                 ; rhs = var_ "succ" [ var "n" ]
+                 })
+   ; `D
+   ; `R (Rewrite { head = "plus"; pats = [ PVar "m" ]
+                 ; guard = None
+                 ; rhs = def "iterNat" [ var "m"; con "Succ" [] ]
+                 })
+
+   ; `R (Rewrite { head = "plus2"; pats = [ PVar "m" ]
+                 ; guard = None
+                 ; rhs = def "iterNat" [ var "m"; { head = Lambda ("x", con "Succ" [var "x"]); args = []} ]
+                 })
+   ; `D
+   ; `R (Rewrite { head = "eqNat"; pats = []
+                 ; guard = None
+                 ; rhs = def "iterNat"
+                       [ def "caseNat" [ con "True" []; lam "k" (con "False" []) ]
+                       ; lam "eqNat_m" (def "caseNat" [ con "False" []; lam "k" (var_ "eqNat_m" [ var "k" ]) ])
+                       ] })
+
    (* ; Rewrite { head = "total"; pats = [ PCon ("Nil", []) ] *)
    (*           ; guard = None *)
    (*           ; rhs  = con "0" [] } *)
    (* ; Rewrite { head = "total"; pats = [ PCon ("Cons", [PVar "x"; PVar "xs"]) ] *)
    (*           ; guard = None *)
    (*           ; rhs  = def "(+)" [ var "x"; def "total" [var "xs"]] } *)
-   ; Rewrite { head = "append"; pats = [ PCon ("Nil", []); PVar "ys" ]
+(*   ; Rewrite { head = "append"; pats = [ PCon ("Nil", []); PVar "ys" ]
              ; guard = None
              ; rhs  = { head = Var "ys"; args = [] } }
    ; Rewrite { head = "append"; pats = [ PCon ("Cons", [PVar "x"; PVar "xs"]); PVar "ys" ]
@@ -235,7 +292,7 @@ let rules =
 
    ; Rewrite { head = "sort"; pats = []; guard = None
              ; rhs = def "compose" [ def "flatten" []; def "makeTree" [] ]
-             }
+             }*)
   |]
 
 (**********************************************************************)
@@ -292,8 +349,18 @@ let leaf = con "Leaf" []
 
 let node x y z = con "Node" [x;y;z]
 
+let rec to_nat = function
+  | 0 -> con "Zero" []
+  | n -> con "Succ" [ to_nat (n-1) ]
+
 let lab_terms =
-  [ def "append" [ of_list [1;2]; of_list [3;4] ]
+  [ def "iterNat" [ of_int 0; { head = Lambda ("x", def "(+)" [ var "x"; of_int 1]); args = [] }; to_nat 4 ]
+  ; def "iterNat" [ to_nat 2; con "Succ" []; to_nat 2 ]
+  ; def "plus" [ to_nat 2; to_nat 2 ]
+  ; def "plus2" [ to_nat 2; to_nat 2 ]
+  ; def "eqNat" [ to_nat 1; to_nat 2 ]
+  ; def "eqNat" [ to_nat 2; to_nat 2 ]
+    (*def "append" [ of_list [1;2]; of_list [3;4] ]
   ; def "append" [ def "append" [ of_list [1;2]; of_list [3;4] ]; of_list [5; 6] ]
 
   ; def "insert" [ of_int 3; leaf ]
@@ -333,16 +400,21 @@ let lab_terms =
                   ; of_list [2]
                   ; of_list [3]
                   ]
-  ; def "foldList" [ con "Nil" []
-                   ; def "compose" [ con "Cons" []; def "(+)" [ of_int 1 ] ]
-                   ; of_list [1;2;3]
-                   ]
-
+      ;*)
+    (* def "foldList" [ con "Nil" []
+   *                  ; def "compose" [ con "Cons" []; def "(+)" [ of_int 1 ] ]
+   *                  ; of_list [1;2;3]
+   *                  ]
+   * ; def "foldList" [ con "Nil" []
+   *                  ; { head = Lambda ("x", { head = Lambda ("y", con "Cons" [ def "(+)" [ of_int 1; var "x" ]; var "y" ]); args = [] }); args = [] }
+   *                  ; of_list [1;2;3]
+   *                  ] *)
+(*
   ; def "sort" [ of_list [] ]
   ; def "sort" [ of_list [4] ]
   ; def "sort" [ of_list [7;1;6;2;5;3;4] ]
   ; def "sort" [ of_list [1;2;3;4] ]
-
+*)
   ]
 
 let initial =
@@ -394,13 +466,15 @@ let initial =
 let update_term current_rule action state =
   match action with
     | ApplyCurrentRule point ->
-       let rule = rules.(current_rule) in
-       (match apply_at_point rule point with
-         | None ->
-            { state with error = Some "Selected rule does not apply here!" }
-         | Some term ->
-            { term  = With_history.update_to term state.term
-            ; error = None })
+       (match rules.(current_rule) with
+         | `D -> state
+         | `R rule ->
+            match apply_at_point rule point with
+              | None ->
+                 { state with error = Some "Selected rule does not apply here!" }
+              | Some term ->
+                 { term  = With_history.update_to term state.term
+                 ; error = None })
     | Undo ->
        (match With_history.undo state.term with
          | None      -> state
@@ -425,13 +499,16 @@ let update action state =
        in
        { state with terms }
 
-let render_head =
+let rec render_head ?active =
   function
     | Var vnm -> Html.(span ~attrs:[A.class_ "variable"] (text vnm))
     | Con cnm -> Html.(span ~attrs:[A.class_ "constructor"] (text cnm))
     | Def dnm -> Html.(span ~attrs:[A.class_ "definition"] (text dnm))
+    | Lambda (vnm, tm) ->
+       Html.(span (text "(\\" ^^ text vnm ^^ text " → "
+             ^^ render_term ?active tm ^^ text ")"))
 
-let render_term ?(active=false) term =
+and render_term ?(active=false) term =
   fold_term
     (fun point head args topmost ->
        let parens d =
@@ -454,11 +531,11 @@ let render_term ?(active=false) term =
                     ^^ span ~attrs:[A.class_ "definition"] (text "+") ^^ arg2 false
                   end)
              | head, [] ->
-                render_head head
+                render_head ~active head
              | head_tm, args ->
                 Html.(
                   parens begin
-                    render_head head_tm
+                    render_head ~active head_tm
                     ^^
                     concat_list (List.map (fun d -> (*text " " ^^*) d false) args)
                   end)
@@ -483,30 +560,37 @@ and render_pats pats =
   let open Html in
   concat_map (fun p -> text " " ^^ render_pat p) pats
 
+let nbsp = "\xc2\xa0" (* NBSP in UTF-8 *)
+
 let render_rule selection idx rule =
      let open Html in
      let classes =
        if idx = selection then "rule selected" else "rule"
      in
-     div ~attrs:[A.class_ classes; E.onclick (SelectRule idx)]
-       begin
-         match rule with
-           | Rewrite { head=rhead; pats; guard; rhs } ->
-              span ~attrs:[A.class_ "definition"] (text rhead)
-              ^^
-              render_pats pats
-              ^^
-              (match guard with
-                | None             -> empty
-                | Some (x, cmp, y) ->
-                   text (Printf.sprintf " | %s %s %s" x (match cmp with `Gt -> ">" | `Le -> "<=") y))
-              ^^
-              text " = "
-              ^^
-              map (fun a -> TermAction (-1, a)) (render_term rhs)
-           | Arithmetic ->
-              text "<< arithmetic >>"
-       end
+     match rule with
+       | `R rule ->
+          div ~attrs:[A.class_ classes; E.onclick (SelectRule idx)] begin
+            (match rule with
+              | Rewrite { head=rhead; pats; guard; rhs } ->
+                 span ~attrs:[A.class_ "definition"] (text rhead)
+                 ^^
+                 render_pats pats
+                 ^^
+                 (match guard with
+                   | None             -> empty
+                   | Some (x, cmp, y) ->
+                      text (Printf.sprintf " | %s %s %s" x (match cmp with `Gt -> ">" | `Le -> "<=") y))
+                 ^^
+                 text " = "
+                 ^^
+                 map (fun a -> TermAction (-1, a)) (render_term rhs)
+              | Arithmetic ->
+                 text "<< arithmetic >>"
+              | Beta ->
+                 text "<< apply >>")
+          end
+       | `D ->
+          text nbsp
 
 let render { current_rule; terms; username } =
   let open Ulmus.Dynamic_HTML in
