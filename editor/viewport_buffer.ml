@@ -1,45 +1,18 @@
 module Make (A : Line_annotator.S) : sig
-  type t
+  include Focus_buffer.BUFFER
 
-  module Buf : sig
-    type 'a annotated_line = private
-      { state : A.state
-      ; line  : 'a
-      ; spans : Focus_buffer.Spans.t
-      }
-  end
+  type 'a annotated_line = private
+    { state : A.state
+    ; line  : 'a
+    ; spans : Focus_buffer.Spans.t
+    }
 
-  val view : t -> string Buf.annotated_line list * string Buf.annotated_line * string Buf.annotated_line list
+  type line = string annotated_line
+
+  val view : t -> line list * line * line list
 
   val of_string : height:int -> string -> t
 
-  val move_start : t -> t
-
-  val move_end : t -> t
-
-  val move_up : t -> t option
-
-  val move_down : t -> t option
-
-  val move_left : t -> t option
-
-  val move_right : t -> t option
-
-  val move_end_of_line : t -> t
-
-  val move_start_of_line : t -> t
-
-  val insert : char -> t -> t
-
-  val insert_newline : t -> t
-
-  val delete_backwards : t -> t option
-
-  val delete_forwards : t -> t option
-
-  val join_up : t -> t option
-
-  val join_down : t -> t option
 end = struct
   module Buf = Focus_buffer.Make (A)
 
@@ -49,6 +22,15 @@ end = struct
     ; buffer : Buf.t
     }
 
+  type 'a annotated_line = 'a Buf.annotated_line =
+    private
+    { state : A.state
+    ; line  : 'a
+    ; spans : Focus_buffer.Spans.t
+    }
+    
+  type line = string annotated_line
+  
   let of_string ~height str =
     { height
     ; offset = 0

@@ -101,7 +101,7 @@ let onkeypress modifiers c =
 
 (**** Rendering *)
 
-let line ?(current=false) num Buf.Buf.{line; spans} =
+let line ?(current=false) num Buf.{line; spans} =
   let open Ulmus.Dynamic_HTML in
   pre ~attrs:[ A.class_ (if current then "line current-line" else "line")
              ; E.onclick (Movement (Offset num))
@@ -132,6 +132,7 @@ let render buffer =
            ; E.onkeypress onkeypress
            ; E.onkeydown onkeydown
            ]
+    (* FIXME: use an array *)
     begin
       snd (List.fold_left
              (fun (i,doc) content -> (i-1,line i content ^^ doc))

@@ -13,45 +13,11 @@ module Spans : sig
   val is_empty : t -> bool
 end
 
-
-module Make (A : Line_annotator.S) : sig
+module type BUFFER = sig
 
   (** Representation of text buffers with a focus point where editing
       can occur. *)
   type t
-
-  (** Annotated lines *)
-  type 'a annotated_line = private
-    { state : A.state
-    ; line  : 'a
-    ; spans : Spans.t
-    }
-
-  val empty_annotated_line : string annotated_line
-
-  (**{2 Creation} *)
-
-  (** [empty] is the empty buffer. *)
-  val empty : t
-  
-  (** [of_string str] creates a buffer with the contents [str], with
-      the current point set to the start of the content. *)
-  val of_string : string -> t
-
-  (**{2 Queries} *)
-
-  (** [view buf] splits the buffer [t] into the lines before the
-      current point (in reverse order), the line with the current point
-      on, and the lines after the current point. *)
-  val view : t ->
-    string annotated_line list * string annotated_line * string annotated_line list
-
-  (** [text t] is the content of [t]. *)
-  val text : t -> string
-
-  (** [num_lines t] is the number of lines in the content of
-      [t]. FIXME: document how empty content works. *)
-  val num_lines : t -> int
 
   (**{2 Movement} *)
 
@@ -130,5 +96,39 @@ module Make (A : Line_annotator.S) : sig
       join point. If there is no next line, then [None] is
       returned. *)
   val join_down : t -> t option
+
+end
+
+
+module Make (A : Line_annotator.S) : sig
+
+  include BUFFER
+
+  (** Annotated lines *)
+  type 'a annotated_line = private
+    { state : A.state
+    ; line  : 'a
+    ; spans : Spans.t
+    }
+
+  val empty_annotated_line : string annotated_line
+
+  (**{2 Creation} *)
+
+  (** [of_string str] creates a buffer with the contents [str], with
+      the current point set to the start of the content. *)
+  val of_string : string -> t
+
+  (**{2 Queries} *)
+
+  (** [view buf] splits the buffer [t] into the lines before the
+      current point (in reverse order), the line with the current point
+      on, and the lines after the current point. *)
+  val view : t ->
+    string annotated_line list * string annotated_line * string annotated_line list
+
+  (** [num_lines t] is the number of lines in the content of
+      [t]. FIXME: document how empty content works. *)
+  val num_lines : t -> int
 
 end
