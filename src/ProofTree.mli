@@ -34,17 +34,6 @@ module type PROOF_TREE = sig
 
   val hole : ?content:Hole.t -> Calculus.formula -> prooftree
 
-  (*
-  val build :
-    Calculus.formula ->
-    Calculus.rule ->
-    (Calculus.formula -> 'a ->
-     (prooftree * 'a,
-      [> `Application_error of Calculus.error | `Proof_mismatch] as 'b) result) ->
-    'a ->
-    (prooftree * 'a, 'b) result
-  *)
-
   (**{2 Traversal of a proof tree} *)
 
   val fold :

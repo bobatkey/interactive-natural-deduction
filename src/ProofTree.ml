@@ -32,15 +32,6 @@ module type PROOF_TREE = sig
   (**{2 Creation of a proof tree} *)
 
   val hole : ?content:Hole.t -> Calculus.formula -> prooftree
-(*
-  val build :
-    Calculus.formula ->
-    Calculus.rule ->
-    (Calculus.formula -> 'a ->
-     (prooftree * 'a, [> `Application_error of Calculus.error | `Proof_mismatch] as 'b) result) ->
-    'a ->
-    (prooftree * 'a, 'b) result
-*)
 
   (**{2 Traversal of a proof tree} *)
 
@@ -92,37 +83,6 @@ module Make (Calculus : CALCULUS) (Hole : HOLE) = struct
 
   let hole ?(content=Hole.empty) formula =
     { formula; status = Hole content }
-
-  (*
-  let build formula rule prover state =
-    match Calculus.apply rule [] formula with
-      | Ok premises ->
-         (let rec handle_premises boxes state = function
-             | [] ->
-                Ok (List.rev boxes, state)
-             | (assumption, formula) :: premises ->
-                match prover formula state with
-                  | Ok (subtree, state)->
-                     (* FIXME: don't use polymorphic equality *)
-                     if Calculus.equiv_formula subtree.formula formula then
-                       (* FIXME: prooftrees with 'global' assumptions *)
-                       handle_premises
-                         ({ subtree; assumption } :: boxes)
-                         state
-                         premises
-                     else
-                       Error `Proof_mismatch
-                  | Error msg ->
-                     Error msg
-          in
-          match handle_premises [] state premises with
-            | Ok (boxes, state) ->
-               Ok ({ formula; status = Rule (rule, boxes) }, state)
-            | Error msg ->
-               Error msg)
-      | Error msg ->
-         Error (`Application_error msg)
-  *)
 
   (* A tree 'turned inside out' to expose a particular point *)
   type step =
