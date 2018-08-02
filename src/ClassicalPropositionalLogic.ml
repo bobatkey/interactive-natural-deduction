@@ -72,38 +72,38 @@ end = struct
        begin
          match formula with
            | Formula.Implies (f1, f2) ->
-              Ok [ (Some f1, f2) ]
+              Ok [ ([f1], f2) ]
            | _ ->
               Error (`Msg "implies_intro: formula is not an implication")
        end
 
     | Implies_elim f ->
-       Ok [ (None, Formula.Implies (f, formula))
-          ; (None, f)
+       Ok [ ([], Formula.Implies (f, formula))
+          ; ([], f)
           ]
 
     | Conj_intro ->
        begin
          match formula with
            | Formula.And (f1, f2) ->
-              Ok [ (None, f1)
-                 ; (None, f2)
+              Ok [ ([], f1)
+                 ; ([], f2)
                  ]
            | _ ->
               Error (`Msg "conj_intro: formula is not a conjunction")
        end
 
     | Conj_elim1 f ->
-       Ok [ (None, Formula.And (formula, f)) ]
+       Ok [ ([], Formula.And (formula, f)) ]
 
     | Conj_elim2 f ->
-       Ok [ (None, Formula.And (f, formula)) ]
+       Ok [ ([], Formula.And (f, formula)) ]
 
     | Disj_intro1 ->
        begin
          match formula with
            | Formula.Or (f1, f2) ->
-              Ok [ (None, f1) ]
+              Ok [ ([], f1) ]
            | _ ->
               Error (`Msg "disj_intro1: formula is not a disjunction")
        end
@@ -112,15 +112,15 @@ end = struct
        begin
          match formula with
            | Formula.Or (f1, f2) ->
-              Ok [ (None, f2) ]
+              Ok [ ([], f2) ]
            | _ ->
               Error (`Msg "disj_intro2: formula is not a disjunction")
        end
 
     | Disj_elim (f1, f2) ->
-       Ok [ (None, Formula.Or (f1, f2))
-          ; (Some f1, formula)
-          ; (Some f2, formula)
+       Ok [ ([], Formula.Or (f1, f2))
+          ; ([f1], formula)
+          ; ([f2], formula)
           ]
 
     | True_intro ->
@@ -131,24 +131,24 @@ end = struct
        end
 
     | False_elim ->
-       Ok [ (None, Formula.False) ]
+       Ok [ ([], Formula.False) ]
 
     | Not_intro ->
        begin
          match formula with
            | Formula.Not f ->
-              Ok [ (Some f, Formula.False) ]
+              Ok [ ([f], Formula.False) ]
            | _ ->
               Error (`Msg "not_intro: formula is not a negation")
        end
 
     | Not_elim f ->
-       Ok [ (None, Formula.Not f)
-          ; (None, f)
+       Ok [ ([], Formula.Not f)
+          ; ([], f)
           ]
 
     | RAA ->
-       Ok [ (Some (Formula.Not formula), Formula.False) ]
+       Ok [ ([Formula.Not formula], Formula.False) ]
 end
 
 module Partials

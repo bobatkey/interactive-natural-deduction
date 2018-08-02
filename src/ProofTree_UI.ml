@@ -188,14 +188,15 @@ struct
       formulabox point (PT.formula point)
     end
 
-  let render_box assumption rendered_subtree =
-    match assumption with
-      | Some assumption ->
-         assumption_box
-           ~assumption:(Formula.to_string assumption)
-           rendered_subtree
-      | None ->
+  let render_box assumptions rendered_subtree =
+    match assumptions with
+      | [] ->
          rendered_subtree
+      | assumptions ->
+         assumption_box
+           ~assumption:(String.concat ", "
+                          (List.map Formula.to_string assumptions))
+           rendered_subtree
 
   let render prooftree =
     PT.fold

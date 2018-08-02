@@ -10,7 +10,7 @@ module type CALCULUS = sig
   type error
 
   val apply : rule -> assumption list -> formula ->
-    ((assumption option * formula) list, error) result
+    ((assumption list * formula) list, error) result
 
   val name_of_rule : rule -> string
 end
@@ -34,6 +34,7 @@ module type PROOF_TREE = sig
 
   val hole : ?content:Hole.t -> Calculus.formula -> prooftree
 
+  (*
   val build :
     Calculus.formula ->
     Calculus.rule ->
@@ -42,13 +43,14 @@ module type PROOF_TREE = sig
       [> `Application_error of Calculus.error | `Proof_mismatch] as 'b) result) ->
     'a ->
     (prooftree * 'a, 'b) result
+  *)
 
   (**{2 Traversal of a proof tree} *)
 
   val fold :
     (point -> Hole.t -> 'a) ->
     (point -> Calculus.rule -> 'b list -> 'a) ->
-    (Calculus.assumption option -> 'a -> 'b) ->
+    (Calculus.assumption list -> 'a -> 'b) ->
     prooftree ->
     'a
 

@@ -1,5 +1,3 @@
-let (@?::) x xs = match x with None -> xs | Some x -> x::xs
-
 module type CALCULUS = sig
   type formula
 
@@ -12,7 +10,7 @@ module type CALCULUS = sig
   type error
 
   val apply : rule -> assumption list -> formula ->
-    ((assumption option * formula) list, error) result
+    ((assumption list * formula) list, error) result
 
   val name_of_rule : rule -> string
 end
@@ -34,7 +32,7 @@ module type PROOF_TREE = sig
   (**{2 Creation of a proof tree} *)
 
   val hole : ?content:Hole.t -> Calculus.formula -> prooftree
-
+(*
   val build :
     Calculus.formula ->
     Calculus.rule ->
@@ -42,13 +40,14 @@ module type PROOF_TREE = sig
      (prooftree * 'a, [> `Application_error of Calculus.error | `Proof_mismatch] as 'b) result) ->
     'a ->
     (prooftree * 'a, 'b) result
+*)
 
   (**{2 Traversal of a proof tree} *)
 
   val fold :
     (point -> Hole.t -> 'a) ->
     (point -> Calculus.rule -> 'b list -> 'a) ->
-    (Calculus.assumption option -> 'a -> 'b) ->
+    (Calculus.assumption list -> 'a -> 'b) ->
     prooftree ->
     'a
 
@@ -87,13 +86,14 @@ module Make (Calculus : CALCULUS) (Hole : HOLE) = struct
     | Rule of rule * proofbox list
 
   and proofbox =
-    { subtree    : prooftree
-    ; assumption : assumption option
+    { subtree     : prooftree
+    ; assumptions : assumption list
     }
 
   let hole ?(content=Hole.empty) formula =
     { formula; status = Hole content }
 
+  (*
   let build formula rule prover state =
     match Calculus.apply rule [] formula with
       | Ok premises ->
@@ -122,14 +122,15 @@ module Make (Calculus : CALCULUS) (Hole : HOLE) = struct
                Error msg)
       | Error msg ->
          Error (`Application_error msg)
+  *)
 
   (* A tree 'turned inside out' to expose a particular point *)
   type step =
-    { step_formula    : formula
-    ; step_rule       : rule
-    ; step_before     : proofbox list
-    ; step_assumption : assumption option
-    ; step_after      : proofbox list
+    { step_formula     : formula
+    ; step_rule        : rule
+    ; step_before      : proofbox list
+    ; step_assumptions : assumption list
+    ; step_after       : proofbox list
     }
 
   type point =
@@ -161,19 +162,22 @@ module Make (Calculus : CALCULUS) (Hole : HOLE) = struct
         | Rule (rulename, children) ->
            let rec fold_children before after accum = match after with
              | [] -> List.rev accum
-             | ({assumption;subtree} as box)::after ->
+             | ({assumptions;subtree} as box)::after ->
                 let step =
-                  { step_formula    = formula
-                  ; step_rule       = rulename
-                  ; step_before     = before
-                  ; step_assumption = assumption
-                  ; step_after      = after
+                  { step_formula     = formula
+                  ; step_rule        = rulename
+                  ; step_before      = before
+                  ; step_assumptions = assumptions
+                  ; step_after       = after
                   }
                 in
                 let result =
-                  fold (step::context) (assumption@?::assumps) subtree
+                  fold
+                    (step::context)
+                    (List.rev_append assumptions assumps)
+                    subtree
                 in
-                let result = f_box assumption result in
+                let result = f_box assumptions result in
                 fold_children (box::before) after (result::accum)
            in
            let sub_results = fold_children [] children [] in
@@ -194,11 +198,11 @@ module Make (Calculus : CALCULUS) (Hole : HOLE) = struct
       let { step_formula
           ; step_rule
           ; step_before
-          ; step_assumption = assumption
+          ; step_assumptions = assumptions
           ; step_after
           } = step
       in
-      let box = { assumption; subtree } in
+      let box = { assumptions; subtree } in
       { formula = step_formula
       ; status  = Rule (step_rule,
                         List.rev_append step_before (box::step_after))
@@ -211,8 +215,8 @@ module Make (Calculus : CALCULUS) (Hole : HOLE) = struct
       | Ok premises ->
          let premises =
            List.map
-             (fun (assumption, formula) ->
-                {assumption; subtree={formula;status=Hole Hole.empty}})
+             (fun (assumptions, formula) ->
+                {assumptions; subtree={formula;status=Hole Hole.empty}})
              premises
          in
          Ok (reconstruct pt_formula (Rule (rule, premises)) pt_context)
@@ -266,8 +270,9 @@ module MakeProofLess (C : CALCULUS) = struct
                 List.rev_append
                   point.before
                   (List.fold_right
-                     (fun (assump, formula) ->
-                        List.cons (assump @?:: point.hole_assumps, formula))
+                     (fun (assumps, formula) ->
+                        List.cons
+                          (List.rev_append assumps point.hole_assumps, formula))
                      premises
                      point.after)
             }
