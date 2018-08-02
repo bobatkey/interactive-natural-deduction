@@ -3,13 +3,21 @@ module type CALCULUS = sig
 
   type assumption
 
-  val match_assumption : formula -> assumption -> bool
+  type update
+
+  val empty_update : update
+
+  val update_formula : update -> formula -> formula
+
+  val update_assumption : update -> assumption -> assumption
 
   type rule
 
   type error
 
-  val apply : rule -> formula -> ((assumption list * formula) list, error) result
+  val unify_with_assumption : formula -> assumption -> (update, error) result
+
+  val apply : rule -> formula -> ((assumption list * formula) list * update, error) result
 
   val name_of_rule : rule -> string
 end

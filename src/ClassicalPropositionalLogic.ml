@@ -21,9 +21,16 @@ module System : sig
 end = struct
   type formula = Formula.t
 
-  let match_assumption = (=)
+  type update = unit
+
+  let unify_with_assumption f1 f2 =
+    if f1 = f2 then Ok () else Error (`Msg "assumption does not match")
 
   type assumption = Formula.t
+
+  let empty_update = ()
+  let update_assumption () f = f
+  let update_formula () f = f
 
   type rule =
     | Implies_intro
@@ -140,6 +147,10 @@ end = struct
 
     | RAA ->
        Ok [ ([Formula.Not formula], Formula.False) ]
+
+  let apply rule goal = match apply rule goal with
+    | Ok subgoals -> Ok (subgoals, ())
+    | Error err   -> Error err
 end
 
 module Partials

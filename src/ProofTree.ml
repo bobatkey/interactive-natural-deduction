@@ -3,13 +3,21 @@ module type CALCULUS = sig
 
   type assumption
 
-  val match_assumption : formula -> assumption -> bool
+  type update
+
+  val empty_update : update
+
+  val update_formula : update -> formula -> formula
+
+  val update_assumption : update -> assumption -> assumption
 
   type rule
 
   type error
 
-  val apply : rule -> formula -> ((assumption list * formula) list, error) result
+  val unify_with_assumption : formula -> assumption -> (update, error) result
+
+  val apply : rule -> formula -> ((assumption list * formula) list * update, error) result
 
   val name_of_rule : rule -> string
 end
@@ -162,117 +170,62 @@ module Make (Calculus : CALCULUS) (Hole : HOLE) = struct
       prooftree
       []
 
-  let reconstruct formula status context =
+  let rec update_proofbox update { subtree; assumptions } =
+    { subtree     = update_prooftree update subtree
+    ; assumptions = List.map (update_assumption update) assumptions
+    }
+
+  and update_prooftree update { formula; status } =
+    { formula = update_formula update formula
+    ; status =
+        match status with
+          | Hole h             -> Hole h (* FIXME: update holes too? *)
+          | Rule (rule, boxes) -> Rule (rule, List.map (update_proofbox update) boxes)
+          | Assumption         -> Assumption
+    }
+
+  let reconstruct formula status update context =
     let reconstruct_step subtree step =
-      let { step_formula
-          ; step_rule
-          ; step_before
-          ; step_assumptions = assumptions
-          ; step_after
-          } = step
-      in
-      let box = { assumptions; subtree } in
-      { formula = step_formula
-      ; status  = Rule (step_rule,
-                        List.rev_append step_before (box::step_after))
-      }
+      let formula     = update_formula update step.step_formula in
+      let rule        = step.step_rule in
+      let before      = List.map (update_proofbox update) step.step_before in
+      let assumptions = List.map (update_assumption update) step.step_assumptions in
+      let after       = List.map (update_proofbox update) step.step_after in
+      let box         = { assumptions; subtree } in
+      let status      = Rule (rule, List.rev_append before (box::after)) in
+      { formula; status }
     in
     List.fold_left reconstruct_step {formula;status} context
 
   let by_assumption {pt_formula;pt_context;pt_assumptions} =
-    if List.exists (match_assumption pt_formula) pt_assumptions then
-      Ok (reconstruct pt_formula Assumption pt_context)
-    else
-      Error `NoSuchAssumption
+    let rec search = function
+      | [] -> Error `NoSuchAssumption
+      | assump :: assumps ->
+         match unify_with_assumption pt_formula assump with
+           | Error _ -> search assumps
+           | Ok update ->
+              let formula = update_formula update pt_formula in
+              Ok (reconstruct formula Assumption update pt_context)
+    in
+    search pt_assumptions
 
   let apply rule {pt_formula;pt_status;pt_context;pt_assumptions} =
     match apply rule pt_formula with
-      | Ok premises ->
+      | Ok (premises, update) ->
+         let formula = update_formula update pt_formula in
          let premises =
            List.map
              (fun (assumptions, formula) ->
                 {assumptions; subtree={formula;status=Hole Hole.empty}})
              premises
          in
-         Ok (reconstruct pt_formula (Rule (rule, premises)) pt_context)
+         Ok (reconstruct formula (Rule (rule, premises)) update pt_context)
       | Error err ->
          Error (`RuleError err)
 
   let make_open {pt_formula;pt_context} =
-    reconstruct pt_formula (Hole Hole.empty) pt_context
+    reconstruct pt_formula (Hole Hole.empty) empty_update pt_context
 
   let set_hole h {pt_formula;pt_context} =
-    reconstruct pt_formula (Hole h) pt_context
-end
-
-module MakeProofLess (C : CALCULUS) = struct
-
-  (* FIXME: name the holes so that they appear in a consistent order. *)
-
-  module Calculus = C
-
-  module Hole = struct
-    type t = unit
-    let empty = ()
-  end
-
-  type prooftree =
-    { formula : C.formula
-    ; holes   : (C.assumption list * C.formula) list
-    }
-
-  type point =
-    { goal_formula : C.formula
-    ; before       : (C.assumption list * C.formula) list
-    ; hole_assumps : C.assumption list
-    ; hole_formula : C.formula
-    ; after        : (C.assumption list * C.formula) list
-    }
-
-  let hole formula =
-    { formula; holes = [ ([], formula) ] }
-
-  let root_formula {formula} = formula
-
-  let formula {hole_formula} = hole_formula
-  let assumptions {hole_assumps} = hole_assumps
-
-  let apply rule point =
-    match C.apply rule point.hole_formula with
-      | Ok premises ->
-         Ok { formula = point.goal_formula
-            ; holes =
-                List.rev_append
-                  point.before
-                  (List.fold_right
-                     (fun (assumps, formula) ->
-                        List.cons
-                          (List.rev_append assumps point.hole_assumps, formula))
-                     premises
-                     point.after)
-            }
-      | Error msg ->
-         Error msg
-
-  let set_hole () point =
-    { formula = point.goal_formula
-    ; holes   =
-        List.rev_append point.before
-          ((point.hole_assumps, point.hole_formula) :: point.after)
-    }
-
-  let holes state =
-    let rec mk_holes points before = function
-      | [] ->
-         points
-      | ((assumps, formula) as hole) :: after ->
-         let point =
-           { goal_formula = state.formula
-           ; hole_assumps = assumps
-           ; hole_formula = formula
-           ; before; after }
-         in
-         mk_holes ((point, ()) :: points) (hole :: before) after
-    in
-    mk_holes [] [] state.holes
+    reconstruct pt_formula (Hole h) empty_update pt_context
 end

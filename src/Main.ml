@@ -7,14 +7,16 @@ let f1 = Formula.(Or (a, b) @-> (a @-> c) @-> (b @-> d) @-> Or (c,d))
 let f2 = Formula.(Or (a @-> b, a @-> c) @-> a @-> Or (b,c))
 
 module App = struct
-  module PTU =
-    ProofTree_UI.Make
+  module PTU = ProofTree_UI.Make (Unify.Term) (Unify.System) (Unify.UI)
+
+(*
       (struct
         type t = Formula.t
         let to_string x = Formula.to_string x
       end)
       (ClassicalPropositionalLogic.System)
       (ClassicalPropositionalLogic.Partials)
+*)
 
   type state =
     | Proving     of PTU.state list * PTU.state
@@ -28,7 +30,8 @@ module App = struct
     | Undo
 
   let initial =
-    StartScreen (Formula.to_string ~unicode:false f1)
+    Proving ([], PTU.initial Unify.goal)
+  (* StartScreen (Formula.to_string ~unicode:false f1) *)
 
   let render = function
     | Proving (history, prooftree) ->
@@ -40,7 +43,7 @@ module App = struct
                (match history with
                  | [] -> button ~attrs:[A.disabled true] (text "Undo")
                  | _  -> button ~attrs:[E.onclick Undo] (text "Undo"));
-               button ~attrs:[E.onclick StartAgain] (text "Enter new formula")
+               button ~attrs:[E.onclick StartAgain] (text "Start again")
              end
            end
          end;
@@ -69,7 +72,7 @@ module App = struct
 
   let update action state = match state, action with
     | StartScreen _,     ChangeFormula s -> StartScreen s
-    | StartScreen _,     StartProving f  -> Proving ([], PTU.initial f)
+    | StartScreen _,     StartProving f  -> Proving ([], PTU.initial Unify.goal)
     | Proving (h, t),    ProofAction a   -> Proving (t::h, PTU.update a t)
     | Proving (t::h, _), Undo            -> Proving (h, t)
     | Proving _,         StartAgain      -> initial
