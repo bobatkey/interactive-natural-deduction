@@ -235,14 +235,14 @@ let impl_intro =
   { parameters = [ "P", 0; "Q", 0 ]
   ; premises   = [ [q"P"] |- q"Q" ]
   ; conclusion = q"P" --> q"Q"
-  ; name       = "->-I"
+  ; name       = "IMP-I"
   }
 
 let impl_elim =
   { parameters = [ "P", 0; "Q", 0 ]
   ; premises   = [ [] |- q"P" --> q"Q"; [] |- q"P" ]
   ; conclusion = q"Q"
-  ; name       = "->-E"
+  ; name       = "IMP-E"
   }
 
 let conj_elim_alt =
