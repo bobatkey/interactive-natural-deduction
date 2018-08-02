@@ -1,4 +1,3 @@
-open Rresult
 open Ulmus.Dynamic_HTML
 
 module type PARTIALS = sig
@@ -66,9 +65,10 @@ struct
   type state = PT.prooftree
 
   type action =
-    | ApplyRule of PT.point * Calculus.rule
-    | Update    of PT.point * P.partial
-    | ResetTo   of PT.point
+    | ApplyRule       of PT.point * Calculus.rule
+    | ApplyAssumption of PT.point
+    | Update          of PT.point * P.partial
+    | ResetTo         of PT.point
     | DoNothing
 
   let rule_selector assumps point formula =
@@ -93,8 +93,8 @@ struct
       ~attrs:[ A.title "Select a rule to apply"
              ; A.class_ "ruleselector"
              ]
-      (option ~action:DoNothing
-         (text "Select rule...")
+      (  option ~action:DoNothing               (text "Select rule...")
+       ::option ~action:(ApplyAssumption point) (text "by assumption")
        ::options)
 
   let proofbox elements =
@@ -188,6 +188,14 @@ struct
       formulabox point (PT.formula point)
     end
 
+  let render_leaf point =
+    proofbox begin%concat
+      premisebox begin%concat
+        div ~attrs:[A.class_ "rulename"] (text "assumption")
+      end;
+      formulabox point (PT.formula point)
+    end
+  
   let render_box assumptions rendered_subtree =
     match assumptions with
       | [] ->
@@ -201,6 +209,7 @@ struct
   let render prooftree =
     PT.fold
       render_partial
+      render_leaf
       render_rule_application
       render_box
       prooftree
@@ -208,9 +217,15 @@ struct
   let initial formula =
     PT.hole formula
 
+  let ignore_error f x =
+    match f with
+      | Ok y    -> y
+      | Error _ -> x
+
   let update action prooftree = match action with
     | DoNothing              -> prooftree
-    | ApplyRule (path, rule) -> R.get_ok (PT.apply rule path)
+    | ApplyRule (path, rule) -> ignore_error (PT.apply rule path) prooftree
+    | ApplyAssumption point  -> ignore_error (PT.by_assumption point) prooftree
     | ResetTo path           -> PT.make_open path
     | Update (path, partial) -> PT.set_hole (Some partial) path
 

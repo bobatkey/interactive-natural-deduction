@@ -1,6 +1,5 @@
 module System : sig
   type rule =
-    | Assumption
     | Implies_intro
     | Implies_elim of Formula.t
     | Conj_intro
@@ -22,12 +21,11 @@ module System : sig
 end = struct
   type formula = Formula.t
 
-  let equiv_formula = (=)
+  let match_assumption = (=)
 
   type assumption = Formula.t
 
   type rule =
-    | Assumption
     | Implies_intro
     | Implies_elim of Formula.t
     | Conj_intro
@@ -43,7 +41,6 @@ end = struct
     | RAA
 
   let name_of_rule = function
-    | Assumption     -> "assumption"
     | Implies_intro  -> "→-I"
     | Implies_elim _ -> "→-E"
     | Conj_intro     -> "∧-I"
@@ -61,13 +58,7 @@ end = struct
   type error =
     [ `Msg of string ]
 
-  let apply rule assumptions formula = match rule with
-    | Assumption ->
-       if List.mem formula assumptions then
-         Ok []
-       else
-         Error (`Msg "assumption: no such assumption")
-
+  let apply rule formula = match rule with
     | Implies_intro ->
        begin
          match formula with
@@ -184,15 +175,7 @@ module Partials
     }
 
   let rule_selection assumptions formula =
-    [ { group_name = "Structural"
-      ; rules =
-          [ if List.mem formula assumptions then
-              Immediate Assumption
-            else
-              Disabled "assumption"
-          ]
-      }
-    ; { group_name = "Implication (→)"
+    [ { group_name = "Implication (→)"
       ; rules =
           [ if Formula.is_implication formula then
               Immediate Implies_intro

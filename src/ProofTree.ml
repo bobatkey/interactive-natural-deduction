@@ -1,16 +1,15 @@
 module type CALCULUS = sig
   type formula
 
-  val equiv_formula : formula -> formula -> bool
-
   type assumption
+
+  val match_assumption : formula -> assumption -> bool
 
   type rule
 
   type error
 
-  val apply : rule -> assumption list -> formula ->
-    ((assumption list * formula) list, error) result
+  val apply : rule -> formula -> ((assumption list * formula) list, error) result
 
   val name_of_rule : rule -> string
 end
@@ -37,6 +36,7 @@ module type PROOF_TREE = sig
 
   val fold :
     (point -> Hole.t -> 'a) ->
+    (point -> 'a) ->
     (point -> Calculus.rule -> 'b list -> 'a) ->
     (Calculus.assumption list -> 'a -> 'b) ->
     prooftree ->
@@ -54,7 +54,12 @@ module type PROOF_TREE = sig
 
   (**{2 Updating a point in a proof tree} *)
 
-  val apply : Calculus.rule -> point -> (prooftree, Calculus.error) result
+  val by_assumption : point -> (prooftree, [>`NoSuchAssumption]) result
+  
+  val apply
+    :  Calculus.rule
+    -> point
+    -> (prooftree, [>`RuleError of Calculus.error]) result
 
   val make_open : point -> prooftree
 
@@ -75,6 +80,7 @@ module Make (Calculus : CALCULUS) (Hole : HOLE) = struct
   and status =
     | Hole of Hole.t
     | Rule of rule * proofbox list
+    | Assumption
 
   and proofbox =
     { subtree     : prooftree
@@ -108,7 +114,7 @@ module Make (Calculus : CALCULUS) (Hole : HOLE) = struct
 
   let root_formula {formula} = formula
 
-  let fold f_hole f_rule f_box prooftree =
+  let fold f_hole f_assump f_rule f_box prooftree =
     let rec fold context assumps {formula;status} =
       let here = { pt_formula     = formula
                  ; pt_status      = status
@@ -142,12 +148,15 @@ module Make (Calculus : CALCULUS) (Hole : HOLE) = struct
            in
            let sub_results = fold_children [] children [] in
            f_rule here rulename sub_results
+        | Assumption ->
+           f_assump here
     in
     fold [] [] prooftree
 
   let holes prooftree =
     fold
       (fun point hole   -> List.cons (point, hole))
+      (fun _point       -> fun l -> l)
       (fun _point _rule -> List.fold_right (@@))
       (fun _assump f -> f)
       prooftree
@@ -170,8 +179,14 @@ module Make (Calculus : CALCULUS) (Hole : HOLE) = struct
     in
     List.fold_left reconstruct_step {formula;status} context
 
+  let by_assumption {pt_formula;pt_context;pt_assumptions} =
+    if List.exists (match_assumption pt_formula) pt_assumptions then
+      Ok (reconstruct pt_formula Assumption pt_context)
+    else
+      Error `NoSuchAssumption
+
   let apply rule {pt_formula;pt_status;pt_context;pt_assumptions} =
-    match apply rule pt_assumptions pt_formula with
+    match apply rule pt_formula with
       | Ok premises ->
          let premises =
            List.map
@@ -181,7 +196,7 @@ module Make (Calculus : CALCULUS) (Hole : HOLE) = struct
          in
          Ok (reconstruct pt_formula (Rule (rule, premises)) pt_context)
       | Error err ->
-         Error err
+         Error (`RuleError err)
 
   let make_open {pt_formula;pt_context} =
     reconstruct pt_formula (Hole Hole.empty) pt_context
@@ -223,7 +238,7 @@ module MakeProofLess (C : CALCULUS) = struct
   let assumptions {hole_assumps} = hole_assumps
 
   let apply rule point =
-    match C.apply rule point.hole_assumps point.hole_formula with
+    match C.apply rule point.hole_formula with
       | Ok premises ->
          Ok { formula = point.goal_formula
             ; holes =

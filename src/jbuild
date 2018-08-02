@@ -2,7 +2,7 @@
 
 (executable
  ((name Main)
-  (libraries (ulmus rresult))
+  (libraries (ulmus))
   (preprocess (pps (ppx_monoid)))))
 
 (ocamllex (Formula_lexer))

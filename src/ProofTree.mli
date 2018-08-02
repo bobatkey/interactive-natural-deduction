@@ -1,16 +1,15 @@
 module type CALCULUS = sig
   type formula
 
-  val equiv_formula : formula -> formula -> bool
-
   type assumption
+
+  val match_assumption : formula -> assumption -> bool
 
   type rule
 
   type error
 
-  val apply : rule -> assumption list -> formula ->
-    ((assumption list * formula) list, error) result
+  val apply : rule -> formula -> ((assumption list * formula) list, error) result
 
   val name_of_rule : rule -> string
 end
@@ -38,6 +37,7 @@ module type PROOF_TREE = sig
 
   val fold :
     (point -> Hole.t -> 'a) ->
+    (point -> 'a) ->
     (point -> Calculus.rule -> 'b list -> 'a) ->
     (Calculus.assumption list -> 'a -> 'b) ->
     prooftree ->
@@ -55,7 +55,10 @@ module type PROOF_TREE = sig
 
   (**{2 Updating a point in a proof tree} *)
 
-  val apply : Calculus.rule -> point -> (prooftree, Calculus.error) result
+  val by_assumption : point -> (prooftree, [>`NoSuchAssumption]) result
+  
+  val apply : Calculus.rule -> point ->
+    (prooftree, [>`RuleError of Calculus.error]) result
 
   val make_open : point -> prooftree
 
