@@ -1,5 +1,3 @@
-open Ulmus.Dynamic_HTML
-
 module type PARTIALS = sig
   module Calculus : ProofTree.CALCULUS
 
@@ -71,6 +69,8 @@ struct
     | ResetTo         of PT.point
     | DoNothing
 
+  open Ulmus.Dynamic_HTML
+
   let rule_selector assumps point formula =
     let open Ulmus.DropDown in
     let options =
@@ -94,6 +94,7 @@ struct
              ; A.class_ "ruleselector"
              ]
       (  option ~action:DoNothing               (text "Select rule...")
+         (* FIXME: only add 'by assumption' if it is applicable here *)
        ::option ~action:(ApplyAssumption point) (text "by assumption")
        ::options)
 
