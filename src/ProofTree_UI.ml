@@ -63,8 +63,9 @@ struct
   type state = PT.prooftree
 
   type action =
+    | Focus           of PT.point
     | ApplyRule       of PT.point * Calculus.rule
-    | ApplyAssumption of PT.point
+    | ApplyAssumption of PT.point * int
     | Update          of PT.point * P.partial
     | ResetTo         of PT.point
     | DoNothing
@@ -94,8 +95,6 @@ struct
              ; A.class_ "ruleselector"
              ]
       (  option ~action:DoNothing               (text "Select rule...")
-         (* FIXME: only add 'by assumption' if it is applicable here *)
-       ::option ~action:(ApplyAssumption point) (text "by assumption")
        ::options)
 
   let proofbox elements =
@@ -123,12 +122,11 @@ struct
     button ~attrs:[E.onclick (ApplyRule (path, rule))]
       (text ("apply " ^ label))
 
-  let assumption_box ~assumption content =
+  let assumption_box ~assumptions content =
     div ~attrs:[A.class_ "assumptionbox"] begin%concat
       div ~attrs:[A.class_ "assumption"] begin%concat
         text "with ";
-        text assumption;
-        text " ..."
+        assumptions
       end;
       content
     end
@@ -149,18 +147,25 @@ struct
       end
     end
 
-  let render_partial point = function
-    | None ->
+  let render_partial point focus = function
+    | None when focus ->
        let assumptions = PT.assumptions point and formula = PT.formula point in
        proofbox begin%concat
          premisebox (rule_selector assumptions point formula);
          formulabox point formula
        end
 
+    | None ->
+       let formula = PT.formula point in
+       proofbox begin%concat
+         premisebox (button ~attrs:[E.onclick (Focus point)] (text "click to focus"));
+         formulabox point formula
+       end
+
     | Some partial ->
-       let name                   = P.name_of_partial partial in
-       let conclusion             = PT.formula point in
-       let  {P.premises; P.apply} = P.present_partial conclusion partial in
+       let name                  = P.name_of_partial partial in
+       let conclusion            = PT.formula point in
+       let {P.premises; P.apply} = P.present_partial conclusion partial in
        proofbox begin%concat
          premisebox begin%concat
            premises |> concat_map begin
@@ -170,7 +175,7 @@ struct
                     proofbox (render_partial_formula point premise_formula)
                  | Some assump ->
                     assumption_box
-                      ~assumption:(if assump = "" then "<formula>" else assump)
+                      ~assumptions:(text (if assump = "" then "<formula>" else assump))
                       (proofbox (render_partial_formula point premise_formula))
            end;
            match apply with
@@ -196,16 +201,38 @@ struct
       end;
       formulabox point (PT.formula point)
     end
-  
+
+  (* If this box is on the focused path, and the assumptions unify
+     with the goal, then allow it for selection.
+
+     What if we want to allow for direct elimination of assumptions?
+
+     1. Focus on a goal
+
+     2. All assumptions become selectable
+
+     3. On selecting an assumption, either we can apply a rule that
+     eliminates that assumption, or (if it unifies) use the assumption
+     rule.  *)
   let render_box assumptions rendered_subtree =
     match assumptions with
       | [] ->
          rendered_subtree
       | assumptions ->
-         assumption_box
-           ~assumption:(String.concat ", "
-                          (List.map Formula.to_string assumptions))
-           rendered_subtree
+         let assumptions =
+           concat_map
+             (function
+               | f, None ->
+                  text (Formula.to_string f ^ ", ")
+               | f, Some (idx, point) ->
+                  begin%concat
+                    button ~attrs:[E.onclick (ApplyAssumption (point, idx))]
+                      (text (string_of_int idx ^ ":" ^ Formula.to_string f));
+                    text ", "
+                  end)
+             assumptions
+         in
+         assumption_box ~assumptions rendered_subtree
 
   let render prooftree =
     PT.fold
@@ -225,8 +252,10 @@ struct
 
   let update action prooftree = match action with
     | DoNothing              -> prooftree
+    | Focus point            -> PT.make_open point
     | ApplyRule (path, rule) -> ignore_error (PT.apply rule path) prooftree
-    | ApplyAssumption point  -> ignore_error (PT.by_assumption point) prooftree
+    | ApplyAssumption (point,idx) ->
+       ignore_error (PT.by_assumption point idx) prooftree
     | ResetTo path           -> PT.make_open path
     | Update (path, partial) -> PT.set_hole (Some partial) path
 

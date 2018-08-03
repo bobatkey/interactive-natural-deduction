@@ -44,10 +44,10 @@ module type PROOF_TREE = sig
   (**{2 Traversal of a proof tree} *)
 
   val fold :
-    (point -> Hole.t -> 'a) ->
+    (point -> bool -> Hole.t -> 'a) ->
     (point -> 'a) ->
     (point -> Calculus.rule -> 'b list -> 'a) ->
-    (Calculus.assumption list -> 'a -> 'b) ->
+    ((Calculus.assumption * (int * point) option) list -> 'a -> 'b) ->
     prooftree ->
     'a
 
@@ -63,7 +63,7 @@ module type PROOF_TREE = sig
 
   (**{2 Updating a point in a proof tree} *)
 
-  val by_assumption : point -> (prooftree, [>`NoSuchAssumption]) result
+  val by_assumption : point -> int -> (prooftree, [>`NoSuchAssumption]) result
   
   val apply : Calculus.rule -> point ->
     (prooftree, [>`RuleError of Calculus.error]) result
