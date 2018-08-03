@@ -245,6 +245,20 @@ let impl_elim =
   ; name       = "IMP-E"
   }
 
+let conj_elim1 =
+  { parameters = [ "P", 0; "Q", 0 ]
+  ; premises   = [ [] |- (q"P" &&& q"Q") ]
+  ; conclusion = q"P"
+  ; name       = "AND-E1"
+  }
+
+let conj_elim2 =
+  { parameters = [ "P", 0; "Q", 0 ]
+  ; premises   = [ [] |- (q"P" &&& q"Q") ]
+  ; conclusion = q"Q"
+  ; name       = "AND-E2"
+  }
+
 let conj_elim_alt =
   { parameters = [ "P", 0; "Q", 0; "R", 0 ]
   ; premises =
@@ -398,12 +412,18 @@ module UI = struct
     }
 
   let rule_selection _assumps _goal =
-    [ { group_name = "Rules"
+    [ { group_name = "Implication"
       ; rules =
           [ Immediate impl_intro
           ; Immediate impl_elim
-          ; Immediate conj_intro
+          ]
+      }
+    ; { group_name = "Conjunction"
+      ; rules =
+          [ Immediate conj_intro
           ; Immediate conj_elim_alt
+          ; Immediate conj_elim1
+          ; Immediate conj_elim2
           ]
       }
     ]
