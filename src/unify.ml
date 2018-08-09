@@ -5,12 +5,30 @@ let index_of x xs =
   in
   find 0 xs
 
+let index_of_exn x xs =
+  match index_of x xs with
+    | None     -> raise Not_found
+    | Some idx -> idx
+
+let numbers n =
+  let rec loop i = if i = n then [] else i :: loop (i+1) in
+  loop 0
+
+(**********************************************************************)
 type mvar = string
 
 let mvar_equal = String.equal
 
 module MVarMap = Map.Make (String)
 
+(* FIXME: thread the fresh name generation through the
+   computations. *)
+let freshname =
+  let next = ref 0 in
+  fun () ->
+    let name = "X" ^ string_of_int !next in incr next; name
+
+(**********************************************************************)
 type constr = string
 
 let constr_equal = String.equal
@@ -19,7 +37,7 @@ let constr_equal = String.equal
 type tm =
   | Var  of int
   | Con of constr * binding_tm list
-  | Unk of mvar * int list
+  | Unk of mvar * int list (* all the variables must be distinct *)
 
 and binding_tm =
   { binders : int
@@ -44,7 +62,7 @@ module Term = struct
 end
 
 (**********************************************************************)
-(*
+(* Lambda-calculus *)
 let lam m   = Con ("lam", [{binders = 1; term = m}])
 let var i   = Var i
 let app m n = Con ("app", [nobind m; nobind n])
@@ -63,41 +81,14 @@ let pat =
 
 let tm =
   app (lam (var 0)) (lam (var 0))
-*)
 
 (**********************************************************************)
-(* Preparation of a term to be a definition: remap all the variables
-   in the term to be bound by the definition of the metavariable. *)
-
-(** [prepare args tm] *)
-let prepare vars tm =
-  let prepare_var offset i =
-    if i < offset then i
-    else
-      let i = i - offset in
-      match index_of i vars with
-        | None -> raise Not_found
-        | Some v -> v + offset
-  in
-  let rec prepare offset = function
-    | Var i ->
-       Var (prepare_var offset i)
-    | Con (c, ms) ->
-       Con (c, List.map (prepare_binding_tm offset) ms)
-    | Unk (mv, vars) ->
-       (* FIXME: do an occurs check here *)
-       (* FIXME: could do pruning here: if any of the variables
-          required are not accessble, then create new metavariables to
-          replace the old ones, but with fewer variables. *)
-       Unk (mv, List.map (prepare_var offset) vars)
-
-  and prepare_binding_tm offset { binders; term } =
-    { binders; term = prepare (offset+binders) term }
-  in
-  try Ok (prepare 0 tm) with Not_found -> Error "scope failure"
+(* Nipkow's example *)
+let lhs = lam (lam (Unk ("F", [1])))
+let rhs = lam (lam (Con ("c", [nobind (Unk ("G", [0; 1]))])))
 
 (**********************************************************************)
-(* Instantiation of metavariable definitions *)
+(* Instantiation of metavariable definitions: applying a renaming.  *)
 let instantiate vars tm =
   let instantiate_var offset i =
     if i < offset then i
@@ -117,7 +108,8 @@ let instantiate vars tm =
   instantiate 0 tm
 
 (**********************************************************************)
-(* Substituting for a metavariable *)
+(* Substituting for a metavariable. FIXME: should also do beta
+   reduction / other normalisation, or should that happen later on? *)
 let rec subst_mv (mv, m as defn) = function
   | Var i ->
      Var i
@@ -132,24 +124,20 @@ and subst_mv_binding defn { binders; term } =
 let apply_subst subst f =
   List.fold_right subst_mv subst f
 
-(* ?X[x,y,z] := c(x,y)
-
-   ?X[a,b,c] ==> c(a,b)
-
-   each metavariable has an arity, which ought to be respected. When
-   turning a term into a definition for a metavariable, we renumber
-   the variables to be easily substitutable: go through the definition
-   and look up that variable in the instantiation list. *)
+(**********************************************************************)
+let rec occurs mv = function
+  | Var i        -> false
+  | Con (_, tms) -> List.exists (occurs_binder mv) tms
+  | Unk (mv', _) -> mvar_equal mv mv'
+and occurs_binder mv {term} =
+  occurs mv term
 
 (**********************************************************************)
-(* Unification:
-
-   ?X[xs]    =?= M : n           ==>   ?X := M   if xs <= fv(M), ?X \notin fmv(M)
-      .. and symmetrically
-   Lam M     =?= Lam N : n       ==>   M =?= N : n+1
-   App(h,Ms) =?= App (h,Ns) : n  ==>   zipWith (=?= : n) Ms Ns
-   _         =?= _               ==>   _|_
-*)
+(* Unification, following Nipkow's "Functional Unification of
+   Higher-Order Patterns", LICS'93. This implementation follows the
+   "Unification by transformation" rules in Figure 1 quite closely,
+   except that (FIXME) the current substitution and problem set are
+   updated eagerly as metavariables are solved. *)
 
 let update_subst binding =
   List.map (fun (mv, m) -> (mv, subst_mv binding m))
@@ -157,46 +145,119 @@ let update_subst binding =
 let update_problems binding =
   List.map (fun (m, m') -> (subst_mv binding m, subst_mv binding m'))
 
+(* FIXME:
+   - lazy updating of the substitution and problem list
+   - factor out the worklist loop and production of new problems
+   - use Maps to represent substitutions
+   - thread fresh metavariable substitution throughout, instead of using side effects
+   - Abstract constructor names, instead of strings
+   - Generic sort checking algorithm
+
+   FIXME (harder: might be ways of dealing with rigid-rigid unification errors):
+   - Incorporation of eta rules (might be able to make progress when one constructor is a lam or a pair)
+   - Incorporation of beta rules (instantiation of a metavariable might cause some computation, but this might generate constraints)
+   - Incorporation of constraints (?X[xs] := ?Y[m1,...,mk]) -- if the rhs ever reduces to a pattern term, then we can make progress.
+   - Incorporation of type information; blocking problems pending type info.
+*)
+
+(* If unification fails, and one side is an elimination, try reducing
+   it? *)
+
 let rec unify subst = function
   | [] ->
      Ok subst
 
-  (* FIXME: what to do if we have ?X[args1] =?= ?X[args2] ??
-
-     if args1 = args2, then we proceed with no more
-     information. Otherwise, we find a way of instantiating ?X to make
-     the argument lists line up (special case of pruning?). *)
   | (Unk (mv, args1), Unk (mv', args2)) :: problems when mvar_equal mv mv' ->
      if args1 = args2 then
        unify subst problems
      else
-       failwith "FIXME: self-unification of metavars"
+       let h = freshname () in
+       let rev_args, _ =
+         List.fold_left2
+           (fun (rev_args, idx) arg1 arg2 ->
+              (if arg1 = arg2 then idx :: rev_args else rev_args), idx+1)
+           ([], 0)
+           args1
+           args2
+       in
+       let defn  = (mv, Unk (h, List.rev rev_args)) in
+       let subst = defn :: update_subst defn subst in
+       unify subst problems
 
-  | (Unk (mv, args), m | m, Unk (mv, args)) :: problems ->
-     (* FIXME: occurs check *)
-     (match prepare args m with
-       | Error e ->
-          Error e
-       | Ok m ->
-          let defn     = (mv, m) in
+  | (Unk (mv1, args1), Unk (mv2, args2)) :: problems ->
+     (* not (mvar_equal mv1 mv2) *)
+     (* intersect args1 and args2, generate a new metavariable that
+        stands for both. *)
+     let h      = freshname () in
+     let args   = List.filter (fun i -> List.mem i args2) args1 in
+     (* FIXME: fold these extractions into the production of args *)
+     let args'1 = List.map (fun i -> index_of_exn i args1) args in
+     let args'2 = List.map (fun i -> index_of_exn i args2) args in
+     let defn1  = (mv1, Unk (h, args'1)) in
+     let defn2  = (mv2, Unk (h, args'2)) in
+     let subst  =
+       defn1 :: defn2 :: update_subst defn1 (update_subst defn2 subst)
+     in
+     unify subst problems
+
+  (* ?X[xs] =?= Var i  ==> ?X[xs] := Var i, assuming that i \in xs
+
+     ?X[xs] =?= c(ys1.m1, ..., ysk.mk) ==>
+     ?X[xs] := c(ys1.?H1[xs,ys1], ..., ysk.?Hk[xs,ysk])
+     ?H1[xs,ys1] =?= m1, ..., ?Hk[xs,ysk] =?= mk
+     assuming X \not\in m1, ..., mk
+  *)
+
+  | (Unk (mv, args), Var i | Var i, Unk (mv, args)) :: problems ->
+     (match index_of i args with
+       | None ->
+          Error `VariableOutOfScope
+       | Some idx ->
+          let defn     = (mv, Var idx) in
           let subst    = defn :: update_subst defn subst in
           let problems = update_problems defn problems in
           unify subst problems)
 
+  | (Unk (mv, args), (Con (c, ms) as tm) | (Con (c, ms) as tm), Unk (mv, args)) :: problems ->
+     if occurs mv tm then Error `OccursCheck
+     else
+       (* FIXME: occurs check *)
+       let rev_ms', new_problems =
+         List.fold_left
+           (fun (rev_ms', new_problems) { binders; term } ->
+              let h = freshname () in
+              let problem =
+                Unk (h, numbers binders @ List.map (fun i -> i + binders) args),
+                term
+              in
+              let m' = { binders
+                       ; term = Unk (h, numbers (binders + List.length args)) }
+              in
+              m' :: rev_ms', problem :: new_problems)
+           ([], [])
+           ms
+       in
+       let defn     = (mv, Con (c, List.rev rev_ms')) in
+       let subst    = defn :: update_subst defn subst in
+       let problems = List.rev_append new_problems (update_problems defn problems) in
+       unify subst problems
+
+  (* Rigid-rigid cases *)
   | (Var i, Var j) :: problems ->
      if i = j then
        unify subst problems
      else
-       Error "object variable mismatch"
+       Error `VarMismatch
 
   | (Con (c1, ms1), Con (c2, ms2)) :: problems ->
      if constr_equal c1 c2 then
        zip_problems subst ms1 ms2 problems
      else
-       Error "constructor mismatch"
+       Error `ConstructorMismatch
 
+  (* Rigid-rigid failures *)
   | (Var _, Con _ | Con _, Var _) :: _ ->
-     Error "object variable =/= constructed term"
+     Error `VarConstructorMismatch
 
 and zip_problems subst ms ms' problems = match ms, ms' with
   | [], [] ->
@@ -206,243 +267,7 @@ and zip_problems subst ms ms' problems = match ms, ms' with
      if b1 = b2 then
        zip_problems subst ms1 ms2 ((m1,m2)::problems)
      else
-       Error "binder mismatch (terms must be ill-sorted)"
+       Error `IllSortedTerms
 
   | _, _ ->
-     Error "length mismatch (terms must be ill-sorted)"
-
-
-
-(**********************************************************************)
-type rule =
-  { parameters : (string * int) list
-  ; name       : string
-  ; conclusion : tm
-  ; premises   : (tm list * tm) list
-  }
-
-let q mv = Unk (mv, [])
-let (&&&) a b = Con ("AND", [nobind a; nobind b])
-let (-->) a b = Con ("IMP", [nobind a; nobind b])
-let v x       = Con (x, [])
-
-let goal = (v"A" &&& v"B") --> (v"B" &&& v"A")
-
-let (|-) a f = (a,f)
-
-let impl_intro =
-  (* (?P ==> ?Q) ==> ?P -> ?Q *)
-  { parameters = [ "P", 0; "Q", 0 ]
-  ; premises   = [ [q"P"] |- q"Q" ]
-  ; conclusion = q"P" --> q"Q"
-  ; name       = "IMP-I"
-  }
-
-let impl_elim =
-  { parameters = [ "P", 0; "Q", 0 ]
-  ; premises   = [ [] |- q"P" --> q"Q"; [] |- q"P" ]
-  ; conclusion = q"Q"
-  ; name       = "IMP-E"
-  }
-
-let conj_elim1 =
-  { parameters = [ "P", 0; "Q", 0 ]
-  ; premises   = [ [] |- (q"P" &&& q"Q") ]
-  ; conclusion = q"P"
-  ; name       = "AND-E1"
-  }
-
-let conj_elim2 =
-  { parameters = [ "P", 0; "Q", 0 ]
-  ; premises   = [ [] |- (q"P" &&& q"Q") ]
-  ; conclusion = q"Q"
-  ; name       = "AND-E2"
-  }
-
-let conj_elim_alt =
-  { parameters = [ "P", 0; "Q", 0; "R", 0 ]
-  ; premises =
-      [ []           |- (q"P" &&& q"Q")
-      ; [q"P"; q"Q"] |- q"R"
-      ]
-  ; conclusion =
-      q"R"
-  ; name = "AND-E"
-  }
-
-let conj_intro =
-  { parameters = [ "P", 0; "Q", 0 ]
-  ; premises   = [ [] |- q"P" ; [] |- q"Q" ]
-  ; conclusion = q"P" &&& q"Q"
-  ; name       = "AND-I"
-  }
-
-
-(*
-let disj_elim =
-  (* ?P \/ ?Q ==> (?P ==> ?R) ==> (?Q ==> ?R) ==> ?R *)
-  { parameters = ["P", 0; "Q", 0; "R", 0]
-  ; conclusion = Unk ("R", [])
-  ; premises =
-      [ ([], Con ("OR", [nobind (Unk ("P",[])); nobind (Unk ("Q",[]))]))
-      ; ([Unk ("P",[])], Unk ("R", []))
-      ; ([Unk ("Q",[])], Unk ("R", []))
-      ]
-  }
-*)
-
-
-(* The Isabelle style presentation is nice, but is there any need for
-   any deeper arrow nesting? *)
-
-(* Plan, when applying a rule to the current goal,
-
-   1. Freshen all the meta variables
-   2. Unify the goal with the conclusion of the rule
-   3. Create the premises
-
-   When attempting an assumption use, unify the current goal
-   with the chosen assumption.
-
-   After each unification, we push the computed substitution
-   through all the formulas in the proof tree (and the holes?).
-*)
-
-(* FIXME: thread the fresh name generation through the freshener. *)
-let freshname =
-  let next = ref 0 in
-  fun () ->
-    let name = "X" ^ string_of_int !next in incr next; name
-
-let list f map xs =
-  List.fold_right
-    (fun x (ys, map) -> let y, map = f map x in (y::ys, map))
-    xs
-    ([], map)
-    
-
-let rec freshen_tm map = function
-  | Var i ->
-     Var i, map
-  | Con (c, tms) ->
-     let tms, map = list freshen_binding_tm map tms in
-     Con (c, tms), map
-  | Unk (mv, vars) ->
-     let nm, map =
-       match MVarMap.find mv map with
-         | exception Not_found ->
-            let nm = freshname () in nm, MVarMap.add mv nm map
-         | nm ->
-            nm, map
-     in
-     Unk (nm, vars), map
-
-and freshen_binding_tm map {binders; term} =
-  let term, map = freshen_tm map term in
-  { binders; term }, map
-
-let freshen_premise map (assumps, goal) =
-  let goal,    map = freshen_tm map goal in
-  let assumps, map = list freshen_tm map assumps in
-  (assumps, goal), map
-
-let freshen_premises map =
-  list freshen_premise map
-
-module System = struct
-
-  type formula = tm
-
-  type assumption = tm
-
-  (* a substitution *)
-  type update = (mvar * tm) list
-
-  let empty_update = []
-
-  let update_formula =
-    apply_subst
-
-  let update_assumption =
-    apply_subst
-
-  type nonrec rule = rule
-
-  type error = string
-
-  let apply rule goal =
-    let                  map = MVarMap.empty in
-    let rule_conclusion, map = freshen_tm map rule.conclusion in
-    let rule_premises,   _   = freshen_premises map rule.premises in
-    match unify [] [rule_conclusion, goal] with
-      | Ok subst ->
-         let subgoals =
-           List.map
-             (fun (assumps, subgoal) ->
-                List.map (apply_subst subst) assumps, apply_subst subst subgoal)
-             rule_premises
-         in
-         Ok (subgoals, subst)
-      | Error err ->
-         Error err
-
-  let unify_with_assumption goal assump =
-    unify [] [goal, assump]
-
-  let name_of_rule r =
-    r.name
-
-end
-
-module UI = struct
-  module Calculus = System
-
-  type partial = { impossible : 'a. 'a }
-
-  let name_of_partial x = x.impossible
-
-  type rule_selector =
-    | Immediate of Calculus.rule
-    | Disabled  of string
-    | Partial   of partial
-
-  type selector_group =
-    { group_name : string
-    ; rules      : rule_selector list
-    }
-
-  let rule_selection _assumps _goal =
-    [ { group_name = "Implication"
-      ; rules =
-          [ Immediate impl_intro
-          ; Immediate impl_elim
-          ]
-      }
-    ; { group_name = "Conjunction"
-      ; rules =
-          [ Immediate conj_intro
-          ; Immediate conj_elim_alt
-          ; Immediate conj_elim1
-          ; Immediate conj_elim2
-          ]
-      }
-    ]
-
-  (* Partial proof presentation *)
-  type partial_formula_part =
-    | T of string
-    | I of string * (string -> partial)
-    | F of Calculus.formula
-
-  type partial_premise =
-    { premise_formula    : partial_formula_part list
-    ; premise_assumption : string option
-    }
-
-  type partial_presentation =
-    { premises : partial_premise list
-    ; apply    : Calculus.rule option
-    }
-
-  let present_partial _ x = x.impossible
-end
+     Error `IllSortedTerms

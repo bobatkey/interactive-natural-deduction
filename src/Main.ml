@@ -1,3 +1,4 @@
+(*
 let a = Formula.Atom "A"
 let b = Formula.Atom "B"
 let c = Formula.Atom "C"
@@ -5,9 +6,11 @@ let d = Formula.Atom "D"
 
 let f1 = Formula.(Or (a, b) @-> (a @-> c) @-> (b @-> d) @-> Or (c,d))
 let f2 = Formula.(Or (a @-> b, a @-> c) @-> a @-> Or (b,c))
+*)
 
 module App = struct
-  module PTU = ProofTree_UI.Make (Unify.Term) (Unify.System) (Unify.UI)
+  module PTU =
+    ProofTree_UI.Make (Unify.Term) (Schematic_rules.System) (Schematic_rules.UI)
 
 (*
       (struct
@@ -30,7 +33,7 @@ module App = struct
     | Undo
 
   let initial =
-    Proving ([], PTU.initial Unify.goal)
+    Proving ([], PTU.initial Schematic_rules.goal)
   (* StartScreen (Formula.to_string ~unicode:false f1) *)
 
   let render = function
@@ -72,7 +75,8 @@ module App = struct
 
   let update action state = match state, action with
     | StartScreen _,     ChangeFormula s -> StartScreen s
-    | StartScreen _,     StartProving f  -> Proving ([], PTU.initial Unify.goal)
+    | StartScreen _,     StartProving f  ->
+       Proving ([], PTU.initial Schematic_rules.goal)
     | Proving (h, t),    ProofAction a   -> Proving (t::h, PTU.update a t)
     | Proving (t::h, _), Undo            -> Proving (h, t)
     | Proving _,         StartAgain      -> initial
