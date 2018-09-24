@@ -7,6 +7,8 @@ type t =
   | True
   | False
 
+val equal : t -> t -> bool
+
 val (@->) : t -> t -> t
 
 val to_string : ?unicode:bool -> t -> string

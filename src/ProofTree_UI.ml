@@ -84,8 +84,7 @@ struct
                      option ~action:(ApplyRule (point, rule))
                        (text (Calculus.name_of_rule rule))
                   | P.Disabled name ->
-                     option ~enabled:false ~action:DoNothing
-                       (text name)
+                     option (text name)
                   | P.Partial partial ->
                      option ~action:(Update (point, partial))
                        (text (P.name_of_partial partial)))))

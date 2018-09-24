@@ -84,5 +84,5 @@ module App = struct
 
 end
 
-let _ =
-  Ulmus.Component.attach ~parent_id:"main" (module App)
+let () =
+  Ulmus.Component.attach ~parent_id:"main" (module App) App.initial

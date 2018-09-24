@@ -7,6 +7,8 @@ type t = Formula_ast.t =
   | True
   | False
 
+let equal = (=)
+
 let (@->) f1 f2 = Implies (f1, f2)
 
 (**********************************************************************)
@@ -28,25 +30,25 @@ let rec to_string ?(unicode=true) f =
     | Atom a ->
        text a
     | Implies (f1, f2) ->
-       parens 10 begin%concatenate
+       parens 10 begin%monoid
          drop (to_string f1);
          text arrow;
          to_string f2
        end
     | And (f1, f2) ->
-       parens 08 begin%concatenate
+       parens 08 begin%monoid
          drop (to_string f1);
          text conj;
          to_string f2
        end
     | Or (f1, f2) ->
-       parens 07 begin%concatenate
+       parens 07 begin%monoid
          drop (to_string f1);
          text disj;
          to_string f2
        end
     | Not f ->
-       begin%concatenate
+       begin%monoid
          text "¬";
          parens 0 (to_string f)
        end

@@ -1,25 +1,30 @@
-module System : sig
-  type rule =
-    | Implies_intro
-    | Implies_elim of Formula.t
-    | Conj_intro
-    | Conj_elim1 of Formula.t
-    | Conj_elim2 of Formula.t
-    | Disj_intro1
-    | Disj_intro2
-    | Disj_elim of Formula.t * Formula.t
-    | True_intro
-    | False_elim
-    | Not_intro
-    | Not_elim of Formula.t
-    | RAA
+type formula =
+  Formula.t
 
-  include ProofTree.CALCULUS
-    with type formula    = Formula.t
-     and type assumption = Formula.t
-     and type rule       :=  rule
-end = struct
+type rule =
+  | Assumption
+  | Implies_intro
+  | Implies_elim of Formula.t
+  | Conj_intro
+  | Conj_elim1 of Formula.t
+  | Conj_elim2 of Formula.t
+  | Disj_intro1
+  | Disj_intro2
+  | Disj_elim of Formula.t * Formula.t
+  | True_intro
+  | False_elim
+  | Not_intro
+  | Not_elim of Formula.t
+  | RAA
+
+module System : ProofTree.CALCULUS
+  with type formula    = Formula.t
+   and type assumption = Formula.t
+   and type rule       =  rule
+= struct
   type formula = Formula.t
+
+  let equiv_formula = Formula.equal
 
   type update = unit
 
@@ -32,20 +37,7 @@ end = struct
   let update_assumption () f = f
   let update_formula () f = f
 
-  type rule =
-    | Implies_intro
-    | Implies_elim of Formula.t
-    | Conj_intro
-    | Conj_elim1 of Formula.t
-    | Conj_elim2 of Formula.t
-    | Disj_intro1
-    | Disj_intro2
-    | Disj_elim of Formula.t * Formula.t
-    | True_intro
-    | False_elim
-    | Not_intro
-    | Not_elim of Formula.t
-    | RAA
+  type nonrec rule = rule
 
   let name_of_rule = function
     | Implies_intro  -> "→-I"
@@ -153,12 +145,9 @@ end = struct
     | Error err   -> Error err
 end
 
-module Partials
-  : ProofTree_UI.PARTIALS with module Calculus = System
+module Partials : ProofTree_UI.PARTIALS with module Calculus = System
 = struct
   module Calculus = System
-
-  open Calculus
 
   type partial =
     | Partial_Implies_elim of string

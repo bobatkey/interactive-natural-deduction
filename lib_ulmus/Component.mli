@@ -6,15 +6,14 @@ module type S = sig
 
   val render : state -> action Dynamic_HTML.t
   val update : action -> state -> state
-  val initial : state
 end
 
 type impossible = { impossible : 'a. 'a }
 
-type t = (module S)
+type 'a t = (module S with type state = 'a)
 
-val fixed : impossible Dynamic_HTML.t -> t
+val fixed : impossible Dynamic_HTML.t -> unit t
 
-val (^^) : t -> t -> t
+val (^^) : 'a t -> 'b t -> ('a * 'b) t
 
-val attach : parent_id:string -> t -> unit
+val attach : parent_id:string -> 'a t -> 'a -> unit

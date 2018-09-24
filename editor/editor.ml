@@ -70,7 +70,7 @@ let onkeydown modifiers key =
     | Enter      -> Some (Edit Newline)
     | Delete     -> Some (Edit Delete_forwards)
     | Home       ->
-       if modifiers.ctrl then
+       if modifiers.E.ctrl then
          Some (Movement Start)
        else
          Some (Movement StartOfLine)
@@ -83,12 +83,13 @@ let onkeydown modifiers key =
        (* FIXME: get the state at the start of the current line, and
           indent to the appropriate amount *)
        Some (Edit (Insert 'X'))
-    | _ -> None
+    | _ ->
+       None
 
 let onkeypress modifiers c =
   let open Ulmus.Dynamic_HTML in
   match modifiers, Uchar.to_char c with
-    | { alt = false; ctrl = false; meta = false}, c when Char.code c <= 127 && Char.code c >= 32 ->
+    | { E.alt = false; ctrl = false; meta = false}, c when Char.code c <= 127 && Char.code c >= 32 ->
        Some (Edit (Insert c))
     | { alt = false; ctrl = true; meta = false}, ('E' | 'e') ->
        Some (Movement EndOfLine)
@@ -116,8 +117,9 @@ let line ?(current=false) num Buf.{line; spans} =
         List.fold_left
           (fun (doc, pos) Focus_buffer.Spans.{span_len; span_styles} ->
              let str = String.sub line pos span_len in
-             (doc ^^
-              span ~attrs:[A.class_ (String.concat " " span_styles)] (text str),
+             let attrs = [A.class_ (String.concat " " span_styles)] in
+             let attrs = if List.mem "cursor" span_styles then E.scroll_into_view :: attrs else attrs in
+             (doc ^^ span ~attrs (text str),
               pos+span_len))
           (empty, 0)
           (spans :> Focus_buffer.Spans.span list)
@@ -177,19 +179,5 @@ let update = function
   | Edit Delete_forwards ->
      delete_forwards
 
-let initial =
-  Buf.of_string ~height:25
-    {|Text editor
-
-- Movement works
-- Insertion and deletion of text works
-- (* Syntax *) highlighting
-- Not done:
-  - Selections
-  - Search and replace
-  - More "Semantic" features
-    - Automatic indentation
-    - 
-  - Unicode support
-  - Viewports
-|}
+let initial text =
+  Buf.of_string ~height:25 text

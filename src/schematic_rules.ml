@@ -138,7 +138,13 @@ module System = struct
 
   type nonrec rule = rule
 
-  type error = string
+  type error =
+    [ `ConstructorMismatch
+    | `IllSortedTerms
+    | `OccursCheck
+    | `VarConstructorMismatch
+    | `VarMismatch
+    | `VariableOutOfScope ]
 
   let apply rule goal =
     let                  map = MVarMap.empty in
